@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MLB Matchup Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0c0e0d;--surface:#131614;--surface2:#1a1d1a;--surface3:#212420;
+  --border:#252825;--border2:#2e322d;
+  --accent:#b5f03c;--accent2:#8abf29;
+  --text:#e2e8d8;--text2:#7a8572;--text3:#454d3e;
+  --gold:#d4a017;--silver:#9aa89a;
+  --info:#1a3320;--info-text:#6fcf87;
+  --warn:#2a1f08;--warn-text:#e6b84a;
+  --danger:#e05555;
+  --font-d:'Barlow Condensed',sans-serif;
+  --font-m:'IBM Plex Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-m);font-size:13px;min-height:100vh;}
+
+/* HEADER */
+header{display:flex;align-items:stretch;border-bottom:1px solid var(--border);background:var(--surface);}
+.header-brand{padding:18px 28px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:4px;}
+.header-brand h1{font-family:var(--font-d);font-size:26px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent);line-height:1;}
+.header-brand p{font-size:10px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;}
+.header-nav{display:flex;align-items:center;margin-left:auto;}
+.nav-btn{background:none;border:none;border-left:1px solid var(--border);color:var(--text2);font-family:var(--font-m);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;padding:0 24px;height:100%;cursor:pointer;transition:color .15s,background .15s;}
+.nav-btn:hover{color:var(--text);background:var(--surface2);}
+.nav-btn.active{color:var(--accent);background:var(--surface2);}
+
+/* LAYOUT */
+.page{display:none;padding:28px 32px 64px;max-width:960px;margin:0 auto;}
+.page.visible{display:block;}
+
+/* TYPOGRAPHY */
+.section-title{font-family:var(--font-d);font-size:20px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text);margin-bottom:4px;}
+.section-sub{font-size:11px;color:var(--text3);letter-spacing:0.06em;margin-bottom:20px;}
+
+/* CHIPS */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+.chip{background:var(--surface2);border:1px solid var(--border2);padding:4px 12px;font-size:11px;color:var(--text2);letter-spacing:0.04em;}
+.chip b{color:var(--text);font-weight:500;}
+
+/* GRID */
+.filter-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3);}
+
+/* INPUTS */
+select,input[type="text"]{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--font-m);font-size:12px;padding:9px 12px;outline:none;transition:border-color .15s;}
+select{appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23454d3e'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+select option{background:#1a1d1a;}
+select:focus,input[type="text"]:focus{border-color:var(--accent);}
+input::placeholder{color:var(--text3);}
+
+/* SEARCH DROPDOWN */
+.search-wrap{position:relative;}
+.dropdown{display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--surface2);border:1px solid var(--border2);z-index:300;max-height:220px;overflow-y:auto;}
+.dd-item{padding:9px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);transition:background .1s;}
+.dd-item:last-child{border-bottom:none;}
+.dd-item:hover{background:var(--surface3);}
+.dd-pos{font-size:10px;color:var(--text3);}
+
+/* TAGS */
+.tag{display:flex;align-items:center;gap:6px;margin-top:5px;min-height:22px;}
+.tag-name{font-size:12px;color:var(--text);}
+.hand-badge{font-family:var(--font-d);font-size:10px;font-weight:700;letter-spacing:0.06em;background:var(--accent);color:#0c0e0d;padding:1px 6px;}
+.tag-clear{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0;line-height:1;}
+.tag-clear:hover{color:var(--danger);}
+
+/* BUTTONS */
+.predict-btn{background:var(--accent);color:#0c0e0d;border:none;font-family:var(--font-d);font-size:15px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;padding:11px 28px;cursor:pointer;width:100%;margin-bottom:20px;transition:background .15s,transform .1s;}
+.predict-btn:hover:not(:disabled){background:#c8ff4a;}
+.predict-btn:active:not(:disabled){transform:scale(0.99);}
+.predict-btn:disabled{background:var(--text3);color:var(--bg);cursor:not-allowed;}
+.refresh-btn{background:none;border:1px solid var(--border2);color:var(--text2);font-family:var(--font-m);font-size:11px;letter-spacing:0.06em;padding:6px 14px;cursor:pointer;transition:color .15s,border-color .15s;}
+.refresh-btn:hover{color:var(--accent);border-color:var(--accent);}
+.export-btn{background:none;border:1px solid var(--border2);color:var(--text2);font-family:var(--font-m);font-size:11px;padding:7px 16px;cursor:pointer;letter-spacing:0.06em;transition:border-color .15s,color .15s;}
+.export-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+/* STATUS / BANNERS */
+.status{font-size:11px;color:var(--text3);min-height:18px;margin-bottom:8px;letter-spacing:0.06em;}
+.banner{padding:10px 14px;font-size:11px;letter-spacing:0.04em;margin-bottom:10px;border-left:3px solid;}
+.banner-info{background:var(--info);color:var(--info-text);border-color:var(--info-text);}
+.banner-warn{background:var(--warn);color:var(--warn-text);border-color:var(--warn-text);}
+
+/* STAT CARDS */
+.results-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-bottom:2px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);padding:16px 8px 14px;text-align:center;}
+.stat-lbl{font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;}
+.stat-val{font-family:var(--font-d);font-size:30px;font-weight:700;color:var(--accent);line-height:1;}
+.stat-sub{font-size:9px;color:var(--text3);margin-top:4px;letter-spacing:0.06em;}
+
+/* BREAKDOWN */
+.bdown{background:var(--surface);border:1px solid var(--border);padding:16px 20px;margin-top:2px;}
+.bdown+.bdown{margin-top:2px;}
+.bdown-title{font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text3);margin-bottom:12px;}
+.bdown table{width:100%;border-collapse:collapse;}
+.bdown td{padding:6px 0;font-size:12px;border-bottom:1px solid var(--border);}
+.bdown tr:last-child td{border-bottom:none;}
+.bdown td:first-child{color:var(--text2);}
+.bdown td:last-child{text-align:right;color:var(--accent);font-weight:500;}
+.export-row{margin-top:14px;display:flex;gap:10px;}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px;}
+.tab{background:none;border:none;border-bottom:2px solid transparent;padding:9px 22px 11px;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;color:var(--text3);margin-bottom:-1px;transition:color .15s;font-family:var(--font-m);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab:hover:not(.active){color:var(--text);}
+
+/* LEADERBOARD */
+.lb{width:100%;border-collapse:collapse;}
+.lb thead tr{border-bottom:1px solid var(--border2);}
+.lb th{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);padding:0 8px 9px;text-align:left;font-weight:400;}
+.lb th.r{text-align:right;}
+.lb tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+.lb tbody tr:hover{background:var(--surface2);}
+.lb td{padding:11px 8px;font-size:12px;color:var(--text);vertical-align:middle;}
+.lb td.r{text-align:right;}
+.lb-rank{font-size:11px;color:var(--text3);width:22px;}
+.lb-rank.t3{color:var(--text);font-weight:500;}
+.lb-player{font-weight:500;font-size:13px;}
+.lb-pitcher{font-size:11px;color:var(--text2);margin-top:2px;}
+.hpill{display:inline-block;font-size:9px;background:var(--surface3);color:var(--text3);padding:1px 5px;margin-left:4px;vertical-align:middle;}
+.team-tag{font-size:11px;color:var(--text2);}
+.game-tag{font-size:10px;color:var(--text3);}
+.bar-wrap{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
+.bar{height:3px;background:var(--border2);width:54px;flex-shrink:0;}
+.bar-fill{height:100%;background:var(--accent);}
+.pval{font-size:13px;font-variant-numeric:tabular-nums;min-width:44px;text-align:right;}
+.pval.gold{color:var(--gold);font-weight:500;}
+.pval.silver{color:var(--silver);font-weight:500;}
+
+/* MISC */
+.dh{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+.no-games{text-align:center;padding:2.5rem 0;font-size:13px;color:var(--text2);}
+.game-cards{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px;}
+.game-card{background:var(--surface2);border:1px solid var(--border);padding:10px 16px;font-size:12px;text-align:left;}
+.game-card-title{font-weight:500;margin-bottom:4px;}
+.game-card-p{color:var(--text2);}
+.empty-filter{text-align:center;padding:2rem 0;font-size:13px;color:var(--text2);}
+.foot{margin-top:24px;font-size:10px;color:var(--text3);line-height:1.8;letter-spacing:0.04em;border-top:1px solid var(--border);padding-top:16px;}
+
+@media(max-width:640px){
+  header{flex-direction:column;}
+  .header-nav{border-top:1px solid var(--border);width:100%;}
+  .nav-btn{flex:1;border-left:none;border-right:1px solid var(--border);padding:12px 0;}
+  .nav-btn:last-child{border-right:none;}
+  .page{padding:20px 16px 48px;}
+  .filter-row,.results-grid{grid-template-columns:1fr 1fr;}
+  .results-grid{grid-template-columns:repeat(3,1fr);}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-brand">
+    <h1>MLB Matchup Predictor</h1>
+    <p>Platoon-aware · Log5 model · Live MLB Stats API</p>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showPage('daily')" id="nav-daily">Daily Top 10</button>
+    <button class="nav-btn" onclick="showPage('manual')" id="nav-manual">Manual Search</button>
+  </nav>
+</header>
+
+<!-- DAILY PAGE -->
+<div class="page visible" id="page-daily">
+  <div class="dh">
+    <div>
+      <div class="section-title">Today's top matchups</div>
+      <div class="section-sub" id="date-label"></div>
+    </div>
+    <button class="refresh-btn" onclick="loadDaily()">↺ Refresh</button>
+  </div>
+  <div class="chips" id="daily-chips"></div>
+  <div class="filter-row" id="daily-filters" style="display:none;">
+    <div class="field">
+      <label>Filter by batter</label>
+      <select id="batter-filter"><option value="">All batters</option></select>
+    </div>
+    <div class="field">
+      <label>Filter by pitcher</label>
+      <select id="pitcher-filter"><option value="">All pitchers</option></select>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" id="tab-hit" onclick="switchTab('hit')">Top 10 — Hit probability</button>
+    <button class="tab" id="tab-hr" onclick="switchTab('hr')">Top 10 — HR probability</button>
+  </div>
+  <div id="daily-content"><div class="status">Loading today's games...</div></div>
+  <div class="foot">Platoon splits from MLB Stats API (min 25 PA). Falls back to season totals if sample too small. Log5 formula vs 2024 MLB league averages. Probabilities per plate appearance.</div>
+</div>
+
+<!-- MANUAL PAGE -->
+<div class="page" id="page-manual">
+  <div class="section-title">Manual matchup search</div>
+  <div class="section-sub">Search any batter vs any pitcher — platoon splits applied automatically</div>
+
+  <div class="filter-row" style="margin-bottom:12px;">
+    <div class="field">
+      <label>Batter</label>
+      <div class="search-wrap" id="batter-wrap">
+        <input type="text" id="batter-input" placeholder="Search batter name..." autocomplete="off"/>
+        <div class="dropdown" id="batter-dd"></div>
+      </div>
+      <div class="tag" id="batter-tag"></div>
+    </div>
+    <div class="field">
+      <label>Starting pitcher</label>
+      <div class="search-wrap" id="pitcher-wrap">
+        <input type="text" id="pitcher-input" placeholder="Search pitcher name..." autocomplete="off"/>
+        <div class="dropdown" id="pitcher-dd"></div>
+      </div>
+      <div class="tag" id="pitcher-tag"></div>
+    </div>
+  </div>
+
+  <div class="filter-row" style="grid-template-columns:160px 1fr;margin-bottom:20px;">
+    <div class="field">
+      <label>Season</label>
+      <select id="season-sel">
+        <option value="2026" selected>2026 (current)</option>
+        <option value="2025">2025</option>
+        <option value="2024">2024</option>
+        <option value="2023">2023</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="predict-btn" id="predict-btn" disabled>Run prediction</button>
+  <div class="status" id="manual-status"></div>
+  <div id="manual-results"></div>
+  <div class="foot">HBP included in PA denominator. Log5 formula blended against 2024 MLB league averages. Results are probabilities per plate appearance.</div>
+</div>
+
+<script>
+const MLB='https://statsapi.mlb.com/api/v1';
+const LG={h:.238,d:.046,t:.006,hr:.035,bb:.083,so:.228,hbp:.010};
+
+function showPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('visible'));
+  document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('visible');
+  document.getElementById('nav-'+p).classList.add('active');
+}
+
+function log5(b,p,lg){
+  if(lg<=0||lg>=1)return b;
+  const n=b*p/lg,d=n+(1-b)*(1-p)/(1-lg);
+  return d===0?b:n/d;
+}
+
+function getRates(stat,group){
+  if(!stat)return null;
+  const pa=group==='hitting'
+    ?(stat.plateAppearances||((stat.atBats||0)+(stat.baseOnBalls||0)+(stat.hitByPitch||0)+(stat.sacFlies||0))||1)
+    :(stat.battersFaced||1);
+  if(pa<5)return null;
+  return{
+    pa,avg:stat.avg||'—',obp:stat.obp||'—',era:stat.era||'—',
+    h:(stat.hits||0)/pa,d:(stat.doubles||0)/pa,t:(stat.triples||0)/pa,
+    hr:(stat.homeRuns||0)/pa,
+    bb:((stat.baseOnBalls||0)+(stat.intentionalWalks||0))/pa,
+    so:(stat.strikeOuts||0)/pa,hbp:(stat.hitByPitch||0)/pa
+  };
+}
+
+const pCache={},bCache={};
+
+async function fetchOverall(id,season,group){
+  try{
+    const r=await fetch(`${MLB}/people/${id}/stats?stats=season&season=${season}&group=${group}&sportId=1`);
+    const data=await r.json();
+    return data.stats?.[0]?.splits?.[0]?.stat||null;
+  }catch(e){return null;}
+}
+
+async function fetchSplit(id,season,group,sitCode){
+  try{
+    const r=await fetch(`${MLB}/people/${id}/stats?stats=statSplits&season=${season}&group=${group}&sportId=1&sitCodes=${sitCode}`);
+    const data=await r.json();
+    const s=data.stats?.[0]?.splits?.[0]?.stat||null;
+    const pa=s?(s.plateAppearances||s.battersFaced||0):0;
+    return pa>=25?s:null;
+  }catch(e){return null;}
+}
+
+async function getPR(id,batSide,season){
+  const k=`${id}-${batSide}-${season}`;
+  if(pCache[k])return pCache[k];
+  const vs=(batSide==='L'||batSide==='S')?'vsLeft':'vsRight';
+  const[sp,ov]=await Promise.all([fetchSplit(id,season,'pitching',vs),fetchOverall(id,season,'pitching')]);
+  pCache[k]=getRates(sp||ov,'pitching');
+  return pCache[k];
+}
+
+async function getBR(id,batSide,pitchHand,season){
+  const k=`${id}-${pitchHand}-${season}`;
+  if(bCache[k])return bCache[k];
+  const vs=pitchHand==='L'?'vsLeft':'vsRight';
+  const[sp,ov]=await Promise.all([fetchSplit(id,season,'hitting',vs),fetchOverall(id,season,'hitting')]);
+  bCache[k]=getRates(sp||ov,'hitting');
+  return bCache[k];
+}
+
+/* ── DAILY ── */
+let allResults=[],activeTab='hit';
+
+function today(){
+  const d=new Date();
+  return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function loadDaily(){
+  document.getElementById('daily-content').innerHTML='<div class="status">Fetching today\'s schedule...</div>';
+  document.getElementById('daily-chips').innerHTML='';
+  document.getElementById('daily-filters').style.display='none';
+  allResults=[];
+  const dt=today();
+  document.getElementById('date-label').textContent=new Date(dt+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+  let games;
+  try{
+    const r=await fetch(`${MLB}/schedule?sportId=1&date=${dt}&hydrate=probablePitcher,lineups,team`);
+    const data=await r.json();
+    games=data.dates?.[0]?.games||[];
+  }catch(e){
+    document.getElementById('daily-content').innerHTML='<div class="status" style="color:var(--danger)">Could not reach MLB Stats API. Check your connection and try again.</div>';
+    return;
+  }
+
+  if(!games.length){
+    document.getElementById('daily-content').innerHTML='<div class="no-games">No MLB games scheduled today.</div>';
+    return;
+  }
+
+  const season=new Date().getFullYear().toString();
+  const matchups=[];
+  for(const game of games){
+    const awayA=game.teams?.away?.team?.abbreviation||'?';
+    const homeA=game.teams?.home?.team?.abbreviation||'?';
+    const label=`${awayA} @ ${homeA}`;
+    const awayP=game.teams?.away?.probablePitcher;
+    const homeP=game.teams?.home?.probablePitcher;
+    const awayL=game.lineups?.awayPlayers||[];
+    const homeL=game.lineups?.homePlayers||[];
+    if(homeP&&awayL.length)awayL.slice(0,9).forEach(b=>matchups.push({batter:b,pitcher:homeP,label,team:awayA}));
+    if(awayP&&homeL.length)homeL.slice(0,9).forEach(b=>matchups.push({batter:b,pitcher:awayP,label,team:homeA}));
+  }
+
+  if(!matchups.length){
+    document.getElementById('daily-content').innerHTML=`
+      <div class="no-games">
+        <p>Lineups for today's ${games.length} game${games.length>1?'s':''} haven't been posted yet.</p>
+        <p style="margin-top:8px;font-size:11px;color:var(--text3);">Check back 1–2 hrs before first pitch and hit Refresh.</p>
+        <div class="game-cards">${games.map(g=>{
+          const a=g.teams?.away?.team?.abbreviation||'?',h=g.teams?.home?.team?.abbreviation||'?';
+          const ap=g.teams?.away?.probablePitcher?.fullName||'TBD',hp=g.teams?.home?.probablePitcher?.fullName||'TBD';
+          const time=g.gameDate?new Date(g.gameDate).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZoneName:'short'}):'';
+          return`<div class="game-card"><div class="game-card-title">${a} @ ${h} <span style="font-size:10px;color:var(--text3)">${time}</span></div><div class="game-card-p">${a}: ${ap}</div><div class="game-card-p">${h}: ${hp}</div></div>`;
+        }).join('')}</div>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('daily-content').innerHTML=`<div class="status">Running model on ${matchups.length} matchups...</div>`;
+
+  const results=[];
+  const BATCH=10;
+  for(let i=0;i<matchups.length;i+=BATCH){
+    await Promise.all(matchups.slice(i,i+BATCH).map(async({batter,pitcher,label,team})=>{
+      try{
+        const batSide=batter.batSide?.code||'R',pitchHand=pitcher.pitchHand?.code||'R';
+        const[bR,pR]=await Promise.all([getBR(batter.id,batSide,pitchHand,season),getPR(pitcher.id,batSide,season)]);
+        if(!bR||!pR)return;
+        const expH=log5(bR.h,pR.h,LG.h),expHR=log5(bR.hr,pR.hr,LG.hr);
+        const expD=log5(bR.d,pR.d,LG.d),expT=log5(bR.t,pR.t,LG.t);
+        const expS=Math.max(0,expH-expD-expT-expHR),expTB=expS+2*expD+3*expT+4*expHR;
+        results.push({batterName:batter.fullName,batterId:batter.id,pitcherName:pitcher.fullName,pitcherId:pitcher.id,team,label,batSide,pitchHand,expH,expHR,expTB});
+      }catch(e){}
+    }));
+  }
+
+  allResults=results;
+
+  // Build filter dropdowns from today's players
+  const bats=[...new Map(results.map(r=>[r.batterId,r.batterName])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+  const pitches=[...new Map(results.map(r=>[r.pitcherId,r.pitcherName])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+  const bSel=document.getElementById('batter-filter');
+  const pSel=document.getElementById('pitcher-filter');
+  bSel.innerHTML='<option value="">All batters</option>'+bats.map(([id,n])=>`<option value="${id}">${n}</option>`).join('');
+  pSel.innerHTML='<option value="">All pitchers</option>'+pitches.map(([id,n])=>`<option value="${id}">${n}</option>`).join('');
+  bSel.onchange=()=>renderTab(activeTab);
+  pSel.onchange=()=>renderTab(activeTab);
+  document.getElementById('daily-filters').style.display='grid';
+  document.getElementById('daily-chips').innerHTML=`<div class="chip"><b>${games.length}</b> games</div><div class="chip"><b>${results.length}</b> matchups modeled</div><div class="chip">Season <b>${season}</b></div>`;
+  renderTab(activeTab);
+}
+
+function switchTab(tab){
+  activeTab=tab;
+  document.getElementById('tab-hit').classList.toggle('active',tab==='hit');
+  document.getElementById('tab-hr').classList.toggle('active',tab==='hr');
+  renderTab(tab);
+}
+
+function renderTab(tab){
+  const bF=document.getElementById('batter-filter')?.value||'';
+  const pF=document.getElementById('pitcher-filter')?.value||'';
+  let filtered=allResults;
+  if(bF)filtered=filtered.filter(r=>r.batterId==bF);
+  if(pF)filtered=filtered.filter(r=>r.pitcherId==pF);
+  if(!filtered.length){document.getElementById('daily-content').innerHTML='<div class="empty-filter">No matchups match this filter.</div>';return;}
+  const sorted=[...filtered].sort((a,b)=>tab==='hit'?b.expH-a.expH:b.expHR-a.expHR);
+  const top=sorted.slice(0,10),maxVal=tab==='hit'?top[0].expH:top[0].expHR;
+  const rows=top.map((r,i)=>{
+    const val=tab==='hit'?r.expH:r.expHR;
+    const pct=(val*100).toFixed(1)+'%';
+    const barW=Math.round((val/maxVal)*100);
+    const rc=i<3?'lb-rank t3':'lb-rank';
+    const vc=i===0?'pval gold':i<3?'pval silver':'pval';
+    return`<tr>
+      <td class="${rc}">${i+1}</td>
+      <td><div class="lb-player">${r.batterName}<span class="hpill">${r.batSide}</span></div><div class="lb-pitcher">vs ${r.pitcherName}<span class="hpill">${r.pitchHand}HP</span></div></td>
+      <td><span class="team-tag">${r.team}</span></td>
+      <td class="r"><span class="game-tag">${r.label}</span></td>
+      <td class="r"><div class="bar-wrap"><div class="bar"><div class="bar-fill" style="width:${barW}%"></div></div><span class="${vc}">${pct}</span></div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('daily-content').innerHTML=`
+    <table class="lb">
+      <thead><tr><th>#</th><th>Batter vs Pitcher</th><th>Team</th><th class="r">Game</th><th class="r">${tab==='hit'?'Hit prob':'HR prob'}</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+/* ── MANUAL SEARCH ── */
+let selBatter=null,selPitcher=null,searchTimer=null;
+function debounce(fn,ms){clearTimeout(searchTimer);searchTimer=setTimeout(fn,ms);}
+
+async function searchPlayers(query,type){
+  if(query.length<2)return[];
+  const season=document.getElementById('season-sel').value;
+  try{
+    const r=await fetch(`${MLB}/sports/1/players?season=${season}&gameType=R`);
+    const data=await r.json();
+    const q=query.toLowerCase();
+    return(data.people||[])
+      .filter(p=>{
+        const name=(p.fullName||'').toLowerCase();
+        const pos=p.primaryPosition?.abbreviation||'';
+        const isP=['P','SP','RP'].includes(pos);
+        if(type==='pitcher')return isP&&name.includes(q);
+        return!isP&&name.includes(q);
+      })
+      .slice(0,8)
+      .map(p=>({id:p.id,name:p.fullName,pos:p.primaryPosition?.abbreviation||'',batSide:p.batSide?.code||'R',pitchHand:p.pitchHand?.code||'R'}));
+  }catch(e){return[];}
+}
+
+function renderDd(dd,items,onSelect){
+  if(!items.length){dd.style.display='none';return;}
+  dd.innerHTML=items.map((p,i)=>`<div class="dd-item" data-i="${i}"><span>${p.name}</span><span class="dd-pos">${p.pos}</span></div>`).join('');
+  dd.style.display='block';
+  dd.querySelectorAll('.dd-item').forEach((el,i)=>el.addEventListener('mousedown',e=>{e.preventDefault();onSelect(items[i]);}));
+}
+
+function handLabel(code,t){
+  if(t==='bat')return code==='S'?'SWITCH':code==='L'?'LHB':'RHB';
+  return code==='L'?'LHP':'RHP';
+}
+
+function setPlayer(type,player){
+  if(type==='batter'){
+    selBatter=player;
+    document.getElementById('batter-input').value='';
+    document.getElementById('batter-dd').style.display='none';
+    document.getElementById('batter-tag').innerHTML=`<span class="tag-name">${player.name}</span><span class="hand-badge">${handLabel(player.batSide,'bat')}</span><button class="tag-clear" onclick="clearPlayer('batter')">×</button>`;
+  }else{
+    selPitcher=player;
+    document.getElementById('pitcher-input').value='';
+    document.getElementById('pitcher-dd').style.display='none';
+    document.getElementById('pitcher-tag').innerHTML=`<span class="tag-name">${player.name}</span><span class="hand-badge">${handLabel(player.pitchHand,'pitch')}</span><button class="tag-clear" onclick="clearPlayer('pitcher')">×</button>`;
+  }
+  checkReady();
+}
+
+window.clearPlayer=function(type){
+  if(type==='batter'){selBatter=null;document.getElementById('batter-tag').innerHTML='';}
+  else{selPitcher=null;document.getElementById('pitcher-tag').innerHTML='';}
+  checkReady();
+  document.getElementById('manual-results').innerHTML='';
+  document.getElementById('manual-status').textContent='';
+};
+
+function checkReady(){document.getElementById('predict-btn').disabled=!(selBatter&&selPitcher);}
+
+document.getElementById('batter-input').addEventListener('input',function(){
+  const val=this.value;
+  debounce(async()=>{renderDd(document.getElementById('batter-dd'),await searchPlayers(val,'batter'),p=>setPlayer('batter',p));},280);
+});
+document.getElementById('pitcher-input').addEventListener('input',function(){
+  const val=this.value;
+  debounce(async()=>{renderDd(document.getElementById('pitcher-dd'),await searchPlayers(val,'pitcher'),p=>setPlayer('pitcher',p));},280);
+});
+document.addEventListener('click',e=>{
+  if(!document.getElementById('batter-wrap').contains(e.target))document.getElementById('batter-dd').style.display='none';
+  if(!document.getElementById('pitcher-wrap').contains(e.target))document.getElementById('pitcher-dd').style.display='none';
+});
+
+document.getElementById('season-sel').addEventListener('change',()=>{
+  selBatter=null;selPitcher=null;
+  ['batter-tag','pitcher-tag'].forEach(id=>document.getElementById(id).innerHTML='');
+  ['batter-input','pitcher-input'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('manual-results').innerHTML='';
+  document.getElementById('manual-status').textContent='';
+  checkReady();
+});
+
+let lastResult=null;
+
+document.getElementById('predict-btn').addEventListener('click',async()=>{
+  document.getElementById('predict-btn').disabled=true;
+  document.getElementById('manual-results').innerHTML='';
+  const season=document.getElementById('season-sel').value;
+  const bHand=selBatter.batSide,pHand=selPitcher.pitchHand;
+  const batterVs=pHand==='L'?'vsLeft':'vsRight';
+  const pitcherVs=(bHand==='L'||(bHand==='S'&&pHand==='R'))?'vsLeft':'vsRight';
+
+  document.getElementById('manual-status').textContent='FETCHING PLATOON SPLITS...';
+
+  const[bSplit,pSplit,bAll,pAll]=await Promise.all([
+    fetchSplit(selBatter.id,season,'hitting',batterVs),
+    fetchSplit(selPitcher.id,season,'pitching',pitcherVs),
+    fetchOverall(selBatter.id,season,'hitting'),
+    fetchOverall(selPitcher.id,season,'pitching')
+  ]);
+
+  const bR=getRates(bSplit||bAll,'hitting');
+  const pR=getRates(pSplit||pAll,'pitching');
+
+  if(!bR||!pR){
+    document.getElementById('manual-status').innerHTML=`<span style="color:var(--danger)">No ${season} stats found. Try a different season.</span>`;
+    document.getElementById('predict-btn').disabled=false;
+    return;
+  }
+
+  document.getElementById('manual-status').textContent='COMPUTING...';
+
+  const expH=log5(bR.h,pR.h,LG.h),expD=log5(bR.d,pR.d,LG.d),expT=log5(bR.t,pR.t,LG.t);
+  const expHR=log5(bR.hr,pR.hr,LG.hr),expBB=log5(bR.bb,pR.bb,LG.bb);
+  const expSO=log5(bR.so,pR.so,LG.so),expHBP=log5(bR.hbp,pR.hbp,LG.hbp);
+  const expS=Math.max(0,expH-expD-expT-expHR),expTB=expS+2*expD+3*expT+4*expHR;
+
+  lastResult={batter:selBatter.name,pitcher:selPitcher.name,season,expH,expD,expT,expHR,expBB,expSO,expHBP,expS,expTB,bR,pR};
+
+  document.getElementById('manual-status').textContent='';
+  const pct=v=>(v*100).toFixed(1)+'%';
+  const usedBS=!!bSplit,usedPS=!!pSplit;
+  const bhl=handLabel(bHand,'bat'),phl=handLabel(pHand,'pitch');
+
+  document.getElementById('manual-results').innerHTML=`
+    <div class="banner banner-info">${selBatter.name} (${bhl}) vs ${selPitcher.name} (${phl}) · ${season} · ${usedBS?'platoon':'overall'} splits for batter, ${usedPS?'platoon':'overall'} splits for pitcher</div>
+    ${(!usedBS||!usedPS)?`<div class="banner banner-warn">Small sample: ${!usedBS?selBatter.name:selPitcher.name} has &lt;25 PA in this split — using full-season rates.</div>`:''}
+    <div class="results-grid">
+      <div class="stat-card"><div class="stat-lbl">Hit</div><div class="stat-val">${pct(expH)}</div><div class="stat-sub">per PA</div></div>
+      <div class="stat-card"><div class="stat-lbl">Tot Bases</div><div class="stat-val">${expTB.toFixed(3)}</div><div class="stat-sub">per PA</div></div>
+      <div class="stat-card"><div class="stat-lbl">Home Run</div><div class="stat-val">${pct(expHR)}</div><div class="stat-sub">per PA</div></div>
+      <div class="stat-card"><div class="stat-lbl">Walk</div><div class="stat-val">${pct(expBB)}</div><div class="stat-sub">per PA</div></div>
+      <div class="stat-card"><div class="stat-lbl">Strikeout</div><div class="stat-val">${pct(expSO)}</div><div class="stat-sub">per PA</div></div>
+    </div>
+    <div class="bdown">
+      <div class="bdown-title">Hit breakdown — prob per PA</div>
+      <table>
+        <tr><td>Single</td><td>${pct(expS)}</td></tr>
+        <tr><td>Double</td><td>${pct(expD)}</td></tr>
+        <tr><td>Triple</td><td>${pct(expT)}</td></tr>
+        <tr><td>Home run</td><td>${pct(expHR)}</td></tr>
+        <tr><td>Hit by pitch</td><td>${pct(expHBP)}</td></tr>
+      </table>
+    </div>
+    <div class="bdown">
+      <div class="bdown-title">Season inputs (${season})</div>
+      <table>
+        <tr><td>${selBatter.name} — avg</td><td>${bR.avg}</td></tr>
+        <tr><td>${selBatter.name} — OBP</td><td>${bR.obp}</td></tr>
+        <tr><td>${selBatter.name} — PA used</td><td>${bR.pa}</td></tr>
+        <tr><td>${selPitcher.name} — ERA</td><td>${pR.era}</td></tr>
+        <tr><td>${selPitcher.name} — batters faced</td><td>${pR.pa}</td></tr>
+      </table>
+    </div>
+    <div class="export-row">
+      <button class="export-btn" onclick="copyCSV()">Copy as CSV</button>
+    </div>`;
+
+  document.getElementById('predict-btn').disabled=false;
+});
+
+window.copyCSV=function(){
+  if(!lastResult)return;
+  const r=lastResult,pct=v=>(v*100).toFixed(2)+'%';
+  const lines=['Batter,Pitcher,Season,Hit%,TotalBases,HR%,BB%,SO%,Single%,Double%,Triple%,HBP%',
+    `${r.batter},${r.pitcher},${r.season},${pct(r.expH)},${r.expTB.toFixed(4)},${pct(r.expHR)},${pct(r.expBB)},${pct(r.expSO)},${pct(r.expS)},${pct(r.expD)},${pct(r.expT)},${pct(r.expHBP)}`].join('\n');
+  navigator.clipboard.writeText(lines).then(()=>{
+    const btn=document.querySelector('.export-btn'),orig=btn.textContent;
+    btn.textContent='Copied!';setTimeout(()=>btn.textContent=orig,1500);
+  });
+};
+
+loadDaily();
+</script>
+</body>
+</html>
