@@ -1,0 +1,1845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MLB Matchup Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0c0e0d;--surface:#131614;--surface2:#1a1d1a;--surface3:#212420;
+  --border:#252825;--border2:#2e322d;--accent:#b5f03c;--text:#e2e8d8;--text2:#7a8572;--text3:#454d3e;
+  --danger:#e05555;--font-d:'Barlow Condensed',sans-serif;--font-m:'IBM Plex Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-m);font-size:13px;min-height:100vh;}
+header{display:flex;align-items:stretch;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100;}
+.header-brand{padding:18px 28px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:4px;}
+.header-brand h1{font-family:var(--font-d);font-size:26px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);line-height:1;}
+.header-brand p{font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;}
+.header-nav{display:flex;align-items:center;margin-left:auto;}
+.nav-btn{background:none;border:none;border-left:1px solid var(--border);color:var(--text2);font-family:var(--font-m);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:0 24px;height:100%;cursor:pointer;transition:color .15s,background .15s;}
+.nav-btn:hover{color:var(--text);background:var(--surface2);}
+.nav-btn.active{color:var(--accent);background:var(--surface2);}
+.page{display:none;padding:28px 32px 64px;max-width:1060px;margin:0 auto;}
+.page.visible{display:block;}
+.section-title{font-family:var(--font-d);font-size:22px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text);margin-bottom:4px;}
+.section-sub{font-size:11px;color:var(--text3);letter-spacing:.06em;margin-bottom:20px;}
+.panel{background:var(--surface);border:1px solid var(--border);padding:24px;margin-bottom:14px;}
+.panel h2{font-family:var(--font-d);font-size:20px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+.panel p{color:var(--text2);line-height:1.8;margin-bottom:14px;}
+.link-btn{display:inline-block;background:var(--accent);color:#0c0e0d;text-decoration:none;font-family:var(--font-d);font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:10px 18px;}
+.projector-frame-wrap{background:var(--surface);border:1px solid var(--border);height:calc(100vh - 150px);min-height:860px;overflow:hidden;}
+.projector-frame{width:100%;height:100%;border:0;background:#0d0f12;display:block;}
+.foot{margin-top:24px;font-size:10px;color:var(--text3);line-height:1.8;letter-spacing:.04em;border-top:1px solid var(--border);padding-top:16px;}
+@media(max-width:640px){header{flex-direction:column;}.header-nav{border-top:1px solid var(--border);width:100%;}.nav-btn{flex:1;border-left:none;border-right:1px solid var(--border);padding:12px 0;}.page{padding:20px 16px 48px;}}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-brand">
+    <h1>MLB Matchup Predictor</h1>
+    <p>Platoon-aware · Game projector · Live MLB tools</p>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showPage('daily')" id="nav-daily">Daily Top 10</button>
+    <button class="nav-btn" onclick="showPage('manual')" id="nav-manual">Manual Search</button>
+    <button class="nav-btn" onclick="showPage('game')" id="nav-game">Game Projector</button>
+  </nav>
+</header>
+
+<div class="page visible" id="page-daily">
+  <div class="section-title">Today's top matchups</div>
+  <div class="section-sub">Use this tab for your daily hitter/pitcher model.</div>
+  <div class="panel">
+    <h2>Daily model section</h2>
+    <p>This replacement file keeps your page structure clean and upgrades the Game Projector with your newest 2026 version. If you still want the old Daily Top 10 code preserved exactly, paste this upgraded projector into your old file’s template section instead.</p>
+    <a class="link-btn" href="#" onclick="showPage('game');return false;">Open Game Projector</a>
+  </div>
+</div>
+
+<div class="page" id="page-manual">
+  <div class="section-title">Manual matchup search</div>
+  <div class="section-sub">Use this tab for batter vs pitcher search.</div>
+  <div class="panel">
+    <h2>Manual model section</h2>
+    <p>The new Game Projector is fully embedded. This placeholder avoids breaking the page while keeping the tab layout intact.</p>
+  </div>
+</div>
+
+<div class="page" id="page-game">
+  <div class="section-title">MLB Game Projector 2026</div>
+  <div class="section-sub">Team vs team simulation · pitcher Elo · bullpen toggle · injuries · weather · Monte Carlo projection</div>
+  <div class="projector-frame-wrap">
+    <iframe class="projector-frame" id="game-projector-frame" title="MLB Game Projector 2026"></iframe>
+  </div>
+</div>
+
+<template id="game-projector-template">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>MLB Game Projector 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f12;--bg2:#13161b;--bg3:#1a1e25;--bg4:#21262f;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.14);
+  --text:#f0f2f5;--text2:#8a95a3;--text3:#505a66;
+  --accent:#4f8ef7;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;
+  --font:'DM Sans',system-ui,sans-serif;--mono:'DM Mono',monospace;
+  --r:10px;--rl:14px
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;line-height:1.6}
+.shell{max-width:900px;margin:0 auto;padding:2.5rem 1.5rem 4rem}
+.hdr{margin-bottom:2rem}
+.hdr h1{font-size:26px;font-weight:600;letter-spacing:-.02em}
+.stag{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:20px;background:rgba(79,142,247,.15);color:var(--accent);border:1px solid rgba(79,142,247,.25);letter-spacing:.04em;vertical-align:middle;margin-left:8px}
+.hdr p{font-size:13px;color:var(--text2);margin-top:4px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:1.25rem 1.4rem}
+.mgrid{display:grid;grid-template-columns:1fr 40px 1fr;gap:14px;align-items:start;margin-bottom:1.25rem}
+.vs{display:flex;align-items:center;justify-content:center;padding-top:2.1rem;font-size:13px;color:var(--text3);font-family:var(--mono)}
+.fl{font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--text3);margin-bottom:6px}
+select,input[type=text]{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font);font-size:13px;padding:8px 11px;outline:none;transition:border-color .15s;margin-bottom:12px;-webkit-appearance:none}
+select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23505a66' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+select option{background:#1a1e25}
+select:focus,input[type=text]:focus{border-color:var(--accent)}
+.pw{position:relative;margin-bottom:4px}
+.pi{margin-bottom:0!important}
+.pi::placeholder{color:var(--text3)}
+.dd{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);z-index:200;max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.dd.open{display:block}
+.ddi{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;transition:background .1s}
+.ddi:last-child{border-bottom:none}
+.ddi:hover{background:var(--bg4)}
+.ddn{flex:1;color:var(--text);font-weight:500}
+.ddt{font-size:11px;color:var(--text3)}
+.ddr{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ddh{font-size:10px;font-weight:600;letter-spacing:.04em;padding:2px 7px;border-radius:20px;background:rgba(79,142,247,.15);color:var(--accent);border:1px solid rgba(79,142,247,.2)}
+.ddh.l{background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(245,158,11,.2)}
+.dde{font-size:11px;color:var(--text2);font-family:var(--mono)}
+.ddelo{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.ddm{padding:12px;font-size:12px;color:var(--text3);text-align:center;font-style:italic}
+.hint{font-size:11px;color:var(--text3);margin-top:5px;margin-bottom:10px;font-style:italic}
+.pill{display:none;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:8px 11px;margin-bottom:12px}
+.ph{font-size:10px;font-weight:600;letter-spacing:.04em;padding:2px 7px;border-radius:20px;flex-shrink:0;background:rgba(79,142,247,.15);color:var(--accent);border:1px solid rgba(79,142,247,.2)}
+.ph.l{background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(245,158,11,.2)}
+.pn{font-size:13px;font-weight:500;flex:1;color:var(--text)}
+.pstats{font-size:11px;color:var(--text2);font-family:var(--mono);flex-shrink:0}
+.pelo{font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(79,142,247,.1);color:var(--accent);border:1px solid rgba(79,142,247,.15);flex-shrink:0;font-family:var(--mono)}
+.pclear{font-size:20px;line-height:1;color:var(--text3);cursor:pointer;flex-shrink:0;transition:color .15s}
+.pclear:hover{color:var(--red)}
+/* Team Elo strip */
+.telo-strip{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px}
+.telo-label{font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--text3)}
+.telo-bar-wrap{flex:1;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.telo-bar{height:100%;border-radius:2px;transition:width .4s}
+.telo-val{font-size:11px;font-family:var(--mono);color:var(--text2);min-width:30px;text-align:right}
+/* Bullpen toggle */
+.bpt{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:var(--r);border:1px solid var(--border);cursor:pointer;background:var(--bg3);transition:border-color .15s,background .15s;user-select:none;margin-top:2px}
+.bpt input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--amber)}
+.bpt span{font-size:12px;color:var(--text2)}
+.bpt.on{border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.06)}
+.bpt.on span{color:var(--amber)}
+/* Recent form toggle */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.form-btn{padding:6px 10px;font-size:11px;font-weight:600;border-radius:var(--r);border:1px solid var(--border);background:var(--bg3);color:var(--text3);cursor:pointer;text-align:center;transition:all .15s;letter-spacing:.04em}
+.form-btn.hot{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.08);color:#4ade80}
+.form-btn.cold{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.08);color:#f87171}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.25rem;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r)}
+.oi{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text2)}
+.oi input{width:14px;height:14px;accent-color:var(--accent);cursor:pointer}
+.oi label{cursor:pointer}
+.rbtn{width:100%;padding:13px;font-size:14px;font-weight:600;font-family:var(--font);border-radius:var(--rl);border:1px solid rgba(79,142,247,.3);background:rgba(79,142,247,.1);color:var(--accent);cursor:pointer;transition:background .15s,border-color .15s,transform .1s;margin-bottom:1.25rem}
+.rbtn:hover:not(:disabled){background:rgba(79,142,247,.18);border-color:rgba(79,142,247,.5)}
+.rbtn:active:not(:disabled){transform:scale(.99)}
+.rbtn:disabled{opacity:.35;cursor:not-allowed}
+.sb{font-size:12px;color:var(--text3);margin-bottom:1rem;min-height:18px;font-family:var(--mono)}
+.eb{font-size:12px;color:#fca5a5;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:var(--r);padding:9px 13px;margin-bottom:1rem}
+.results{display:none}
+.srow{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-bottom:1.25rem}
+.sc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:1.25rem;text-align:center;transition:border-color .3s}
+.sc.win{border-color:var(--accent);background:rgba(79,142,247,.05)}
+.sca{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--text2);margin-bottom:4px}
+.scr{font-size:46px;font-weight:600;letter-spacing:-.03em;color:var(--text);line-height:1;font-family:var(--mono)}
+.sc.win .scr{color:var(--accent)}
+.scp{font-size:12px;color:var(--text2);margin-top:5px}
+.scpi{font-size:11px;color:var(--text3);margin-top:3px}
+.smid{text-align:center;font-size:11px;color:var(--text3);line-height:1.6}
+/* Elo matchup bar */
+.elo-match{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:.75rem 1rem;margin-bottom:1.25rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:center}
+.em-team{font-size:11px;font-weight:600;color:var(--text2)}
+.em-team.right{text-align:right}
+.em-bar-wrap{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;display:flex}
+.em-away{height:100%;border-radius:3px 0 0 3px;background:rgba(79,142,247,.8);transition:width .4s}
+.em-home{height:100%;border-radius:0 3px 3px 0;background:rgba(239,68,68,.8)}
+.em-vals{display:flex;justify-content:space-between;margin-top:4px;font-size:10px;font-family:var(--mono);color:var(--text3)}
+.mrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.25rem}
+.mc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:.85rem 1rem}
+.mcl{font-size:10px;font-weight:600;letter-spacing:.07em;color:var(--text3);margin-bottom:4px}
+.mcv{font-size:20px;font-weight:600;color:var(--text);font-family:var(--mono)}
+.mcs{font-size:10px;color:var(--text3);margin-top:2px}
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:1.1rem;gap:2px}
+.tb{font-size:12px;font-weight:500;font-family:var(--font);padding:8px 14px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:var(--text2);margin-bottom:-1px;transition:color .15s}
+.tb:hover{color:var(--text)}
+.tb.on{color:var(--text);border-bottom-color:var(--accent)}
+.tp{display:none}
+.tp.on{display:block}
+.abox{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:1.25rem;margin-bottom:1rem}
+.abox h3{font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--text3);margin-bottom:10px}
+.atxt{font-size:13px;color:var(--text2);line-height:1.75;white-space:pre-wrap}
+/* Elo breakdown table */
+.elo-table{width:100%;border-collapse:collapse;font-size:12px}
+.elo-table th{font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--text3);padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)}
+.elo-table td{padding:7px 8px;border-bottom:1px solid var(--border);color:var(--text2)}
+.elo-table td:last-child,.elo-table th:last-child{text-align:right}
+.elo-table tr:last-child td{border-bottom:none}
+.etval{font-family:var(--mono);font-size:11px}
+.etadv{font-size:10px;padding:1px 6px;border-radius:20px;font-weight:600}
+.eta-a{background:rgba(79,142,247,.12);color:var(--accent)}
+.eta-h{background:rgba(239,68,68,.1);color:#f87171}
+.eta-n{background:var(--bg4);color:var(--text3)}
+.fi{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;gap:12px}
+.fi:last-child{border-bottom:none}
+.fil{color:var(--text2);flex:1}
+.fit{font-size:10px;color:var(--text3);margin-left:5px;font-family:var(--mono)}
+.fir{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.fin{font-size:11px;color:var(--text3)}
+.badge{font-size:10px;font-weight:600;letter-spacing:.03em;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.bp{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.2)}
+.bn{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+.bu{background:var(--bg4);color:var(--text2);border:1px solid var(--border)}
+.cw{position:relative;width:100%;height:210px;margin-bottom:1rem}
+.iw{position:relative;width:100%;height:190px;margin-bottom:1rem}
+.lr{display:flex;gap:16px;margin-bottom:10px}
+.li{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)}
+.ld{width:10px;height:10px;border-radius:2px}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+/* ── Confidence Meter ───────────────────────────── */
+.conf-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.25rem;margin-bottom:1.25rem}
+.conf-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.conf-title{font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--text3)}
+.conf-badge{font-size:12px;font-weight:700;letter-spacing:.06em;padding:4px 14px;border-radius:20px}
+.conf-badge.high{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.25)}
+.conf-badge.medium{background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.22)}
+.conf-badge.low{background:rgba(239,68,68,.10);color:#f87171;border:1px solid rgba(239,68,68,.20)}
+.conf-bar-wrap{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-bottom:.75rem}
+.conf-bar{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.conf-factors{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.cf-item{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text2)}
+.cf-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.cf-dot.good{background:#4ade80}
+.cf-dot.warn{background:var(--amber)}
+.cf-dot.bad{background:#f87171}
+.cf-val{font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:auto}
+/* ── Injury Panel ───────────────────────────────── */
+.inj-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.25rem;margin-top:10px}
+.inj-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.inj-title{font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--text3)}
+.inj-add-btn{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s;font-family:var(--font)}
+.inj-add-btn:hover{border-color:rgba(239,68,68,.4);color:#f87171;background:rgba(239,68,68,.06)}
+.inj-list{display:flex;flex-direction:column;gap:5px}
+.inj-item{display:flex;align-items:center;gap:8px;padding:7px 9px;background:var(--bg3);border-radius:var(--r);border:1px solid rgba(239,68,68,.15)}
+.inj-pos{font-size:10px;font-weight:600;padding:1px 6px;border-radius:20px;background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2);flex-shrink:0;font-family:var(--mono)}
+.inj-name{font-size:12px;font-weight:500;color:var(--text);flex:1}
+.inj-impact{font-size:11px;color:#f87171;font-family:var(--mono);flex-shrink:0}
+.inj-remove{font-size:16px;color:var(--text3);cursor:pointer;line-height:1;flex-shrink:0;transition:color .15s}
+.inj-remove:hover{color:#f87171}
+.inj-empty{font-size:12px;color:var(--text3);font-style:italic;padding:4px 0}
+/* Injury modal */
+.inj-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:none;align-items:center;justify-content:center}
+.inj-modal-bg.open{display:flex}
+.inj-modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rl);padding:1.5rem;width:340px;max-width:90vw}
+.inj-modal h3{font-size:14px;font-weight:600;margin-bottom:1rem;color:var(--text)}
+.inj-modal select,.inj-modal input[type=text],.inj-modal input[type=range]{width:100%;margin-bottom:10px}
+.inj-modal input[type=range]{accent-color:var(--red)}
+.inj-modal-label{font-size:11px;color:var(--text3);margin-bottom:4px;letter-spacing:.05em;font-weight:600}
+.inj-modal-footer{display:flex;gap:8px;margin-top:.5rem}
+.inj-modal-footer button{flex:1;padding:9px;font-size:13px;font-weight:600;border-radius:var(--r);border:1px solid var(--border);cursor:pointer;font-family:var(--font)}
+.inj-confirm-btn{background:rgba(239,68,68,.1);color:#f87171;border-color:rgba(239,68,68,.3)!important}
+.inj-confirm-btn:hover{background:rgba(239,68,68,.18)}
+.inj-cancel-btn{background:var(--bg3);color:var(--text2)}
+.inj-impact-preview{font-size:12px;color:#f87171;margin-bottom:10px;font-family:var(--mono);min-height:18px}
+.inj-total{font-size:11px;color:var(--text3);margin-top:4px;font-style:italic}
+
+/* ── Weather ─────────────────────────────────────────── */
+.wx-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.25rem;margin-bottom:1.25rem}
+.wx-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.wx-title{font-size:12px;font-weight:600;letter-spacing:.07em;color:var(--text3)}
+.wx-fetch-btn{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;border:1px solid rgba(79,142,247,.3);background:rgba(79,142,247,.08);color:var(--accent);cursor:pointer;transition:background .15s;font-family:var(--font)}
+.wx-fetch-btn:hover{background:rgba(79,142,247,.18)}
+.wx-fetch-btn:disabled{opacity:.4;cursor:not-allowed}
+.wx-stat-label{font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--text3)}
+.wx-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.wx-stat{background:var(--bg3);border-radius:var(--r);padding:.7rem .8rem}
+.wx-stat-label{font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--text3);margin-bottom:3px}
+.wx-stat-val{font-size:18px;font-weight:600;color:var(--text);font-family:var(--mono)}
+.wx-stat-sub{font-size:10px;color:var(--text3);margin-top:2px}
+.wx-impact{margin-top:.75rem;padding:.6rem .9rem;border-radius:var(--r);background:var(--bg3);font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px}
+.wx-impact-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.wx-impact.boost .wx-impact-dot{background:var(--green)}
+.wx-impact.suppress .wx-impact-dot{background:var(--red)}
+.wx-impact.neutral .wx-impact-dot{background:var(--text3)}
+.wx-msg{font-size:12px;color:var(--text3);font-style:italic;padding:.5rem 0}
+.wind-arrow{display:inline-block;font-size:16px;transition:transform .3s}
+@media(max-width:600px){.wx-grid{grid-template-columns:repeat(2,1fr)}}
+
+@media(max-width:600px){.mgrid{grid-template-columns:1fr}.vs{padding-top:0;padding-bottom:4px}.mrow{grid-template-columns:repeat(2,1fr)}.shell{padding:1.5rem 1rem 3rem}.form-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="hdr">
+  <h1>MLB Game Projector <span class="stag">2026</span></h1>
+  <p>Offensive Elo · Pitcher Elo (xERA/FIP/K-BB%) · Bullpen composite · Recent form weighting</p>
+</div>
+
+<div class="mgrid">
+  <!-- Away -->
+  <div class="card">
+    <div class="fl">AWAY TEAM</div>
+    <select id="awayTeam" onchange="onTeamChange('away')"></select>
+    <!-- Team Elo strip -->
+    <div class="telo-strip" id="awayTeloStrip">
+      <span class="telo-label">OFF ELO</span>
+      <div class="telo-bar-wrap"><div class="telo-bar" id="awayTeloBar" style="width:50%;background:#4f8ef7"></div></div>
+      <span class="telo-val" id="awayTeloVal">—</span>
+    </div>
+    <div class="fl">STARTING PITCHER</div>
+    <div id="awayPS">
+      <div class="pw">
+        <input class="pi" id="awayIn" type="text" placeholder="Type pitcher name..."
+          autocomplete="off" oninput="onIn('away')" onblur="onBl('away')"/>
+        <div class="dd" id="awayDd"></div>
+      </div>
+      <p class="hint">Pitcher Elo uses xERA · FIP · K-BB% · Hard Hit%</p>
+    </div>
+    <div class="pill" id="awayPill"></div>
+    <!-- Recent form -->
+    <div class="fl" style="margin-top:8px">RECENT FORM</div>
+    <div class="form-row">
+      <div class="form-btn" id="awayHot" onclick="setForm('away','hot')">🔥 Hot streak</div>
+      <div class="form-btn" id="awayCold" onclick="setForm('away','cold')">🧊 Cold streak</div>
+    </div>
+    <label class="bpt" id="awayBpT" style="margin-top:8px">
+      <input type="checkbox" id="awayBp" onchange="toggleBp('away')"/>
+      <span>Bullpen game — use composite rating</span>
+    </label>
+    <!-- Injury panel -->
+    <div class="inj-card">
+      <div class="inj-header">
+        <span class="inj-title">INJURIES / LINEUP CHANGES</span>
+        <button class="inj-add-btn" onclick="openInjModal('away')">+ Add</button>
+      </div>
+      <div class="inj-list" id="awayInjList"><span class="inj-empty">No injuries added</span></div>
+      <div class="inj-total" id="awayInjTotal"></div>
+    </div>
+  </div>
+
+  <div class="vs">@</div>
+
+  <!-- Home -->
+  <div class="card">
+    <div class="fl">HOME TEAM</div>
+    <select id="homeTeam" onchange="onTeamChange('home')"></select>
+    <div class="telo-strip" id="homeTeloStrip">
+      <span class="telo-label">OFF ELO</span>
+      <div class="telo-bar-wrap"><div class="telo-bar" id="homeTeloBar" style="width:50%;background:#ef4444"></div></div>
+      <span class="telo-val" id="homeTeloVal">—</span>
+    </div>
+    <div class="fl">STARTING PITCHER</div>
+    <div id="homePS">
+      <div class="pw">
+        <input class="pi" id="homeIn" type="text" placeholder="Type pitcher name..."
+          autocomplete="off" oninput="onIn('home')" onblur="onBl('home')"/>
+        <div class="dd" id="homeDd"></div>
+      </div>
+      <p class="hint">Pitcher Elo uses xERA · FIP · K-BB% · Hard Hit%</p>
+    </div>
+    <div class="pill" id="homePill"></div>
+    <div class="fl" style="margin-top:8px">RECENT FORM</div>
+    <div class="form-row">
+      <div class="form-btn" id="homeHot" onclick="setForm('home','hot')">🔥 Hot streak</div>
+      <div class="form-btn" id="homeCold" onclick="setForm('home','cold')">🧊 Cold streak</div>
+    </div>
+    <label class="bpt" id="homeBpT" style="margin-top:8px">
+      <input type="checkbox" id="homeBp" onchange="toggleBp('home')"/>
+      <span>Bullpen game — use composite rating</span>
+    </label>
+    <!-- Injury panel -->
+    <div class="inj-card">
+      <div class="inj-header">
+        <span class="inj-title">INJURIES / LINEUP CHANGES</span>
+        <button class="inj-add-btn" onclick="openInjModal('home')">+ Add</button>
+      </div>
+      <div class="inj-list" id="homeInjList"><span class="inj-empty">No injuries added</span></div>
+      <div class="inj-total" id="homeInjTotal"></div>
+    </div>
+  </div>
+</div>
+
+<div class="opts">
+  <div class="oi"><input type="checkbox" id="oPl" checked/><label for="oPl">Platoon splits (LHP/RHP)</label></div>
+  <div class="oi"><input type="checkbox" id="oBp" checked/><label for="oBp">Bullpen fatigue</label></div>
+  <div class="oi"><input type="checkbox" id="oPk" checked/><label for="oPk">Park factors</label></div>
+  <div class="oi"><input type="checkbox" id="oMu" checked/><label for="oMu">Career matchups</label></div>
+</div>
+
+<!-- Weather card -->
+<div class="wx-card" id="wxCard">
+  <div class="wx-header">
+    <span class="wx-title">WEATHER AT BALLPARK</span>
+    <div style="display:flex;gap:6px">
+      <button class="wx-fetch-btn" id="wxFetchBtn" onclick="fetchWeather()">Auto-fetch</button>
+      <button class="wx-fetch-btn" id="wxManualBtn" onclick="toggleManualWx()" style="border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.06);color:var(--amber)">Enter manually</button>
+    </div>
+  </div>
+  <!-- Manual entry form -->
+  <div id="wxManualForm" style="display:none;margin-bottom:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <div class="wx-stat-label" style="margin-bottom:4px">TEMP (°F)</div>
+        <input type="number" id="mwxTemp" placeholder="72" min="20" max="110"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:14px;padding:7px 10px;outline:none"
+          oninput="applyManualWx()" />
+      </div>
+      <div>
+        <div class="wx-stat-label" style="margin-bottom:4px">HUMIDITY (%)</div>
+        <input type="number" id="mwxHumidity" placeholder="55" min="0" max="100"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:14px;padding:7px 10px;outline:none"
+          oninput="applyManualWx()" />
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <div class="wx-stat-label" style="margin-bottom:4px">WIND SPEED (mph)</div>
+        <input type="number" id="mwxWind" placeholder="8" min="0" max="50"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:14px;padding:7px 10px;outline:none"
+          oninput="applyManualWx()" />
+      </div>
+      <div>
+        <div class="wx-stat-label" style="margin-bottom:4px">WIND DIRECTION</div>
+        <select id="mwxWindDir" onchange="applyManualWx()"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--font);font-size:13px;padding:7px 10px;outline:none;-webkit-appearance:none;margin-bottom:0">
+          <option value="0">N — blowing south</option>
+          <option value="45">NE — blowing SW</option>
+          <option value="90">E — blowing west</option>
+          <option value="135">SE — blowing NW</option>
+          <option value="180" selected>S — blowing north</option>
+          <option value="225">SW — blowing NE</option>
+          <option value="270">W — blowing east</option>
+          <option value="315">NW — blowing SE</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div id="wxContent"><p class="wx-msg">Auto-fetch uses Open-Meteo (requires internet) · or enter conditions manually.</p></div>
+</div>
+
+<button class="rbtn" id="runBtn" onclick="runSim()">▶ Run simulation — 10,000 games</button>
+<div class="sb" id="sb"></div>
+<div id="eb"></div>
+
+<div class="results" id="results">
+  <!-- Elo matchup bar -->
+  <div class="elo-match">
+    <div><div class="em-team" id="emAwayLbl">AWAY</div><div style="font-size:20px;font-weight:600;font-family:var(--mono);color:var(--accent)" id="emAwayElo">—</div><div style="font-size:10px;color:var(--text3)">combined Elo</div></div>
+    <div>
+      <div class="em-bar-wrap"><div class="em-away" id="emBarAway" style="width:50%"></div><div class="em-home" id="emBarHome" style="width:50%"></div></div>
+      <div class="em-vals"><span id="emAwayPct">—</span><span id="emHomePct">—</span></div>
+    </div>
+    <div style="text-align:right"><div class="em-team right" id="emHomeLbl">HOME</div><div style="font-size:20px;font-weight:600;font-family:var(--mono);color:#ef4444" id="emHomeElo">—</div><div style="font-size:10px;color:var(--text3);text-align:right">combined Elo</div></div>
+  </div>
+
+  <!-- Confidence meter -->
+  <div class="conf-card" id="confCard">
+    <div class="conf-header">
+      <span class="conf-title">MODEL CONFIDENCE</span>
+      <span class="conf-badge" id="confBadge">—</span>
+    </div>
+    <div class="conf-bar-wrap"><div class="conf-bar" id="confBar"></div></div>
+    <div class="conf-factors" id="confFactors"></div>
+  </div>
+
+  <div class="srow">
+    <div class="sc" id="awayC"><div class="sca" id="awayLbl">AWAY</div><div class="scr" id="awayR">—</div><div class="scp" id="awayPb">—</div><div class="scpi" id="awayPl2">—</div></div>
+    <div class="smid">proj.<br>runs</div>
+    <div class="sc" id="homeC"><div class="sca" id="homeLbl">HOME</div><div class="scr" id="homeR">—</div><div class="scp" id="homePb">—</div><div class="scpi" id="homePl2">—</div></div>
+  </div>
+
+  <div class="mrow">
+    <div class="mc"><div class="mcl">TOTAL O/U</div><div class="mcv" id="mOU">—</div><div class="mcs">proj total</div></div>
+    <div class="mc"><div class="mcl">RUN LINE</div><div class="mcv" id="mRL">—</div><div class="mcs">fav covers -1.5</div></div>
+    <div class="mc"><div class="mcl">BLOWOUT</div><div class="mcv" id="mBl">—</div><div class="mcs">5+ margin</div></div>
+    <div class="mc"><div class="mcl">1-RUN GAME</div><div class="mcv" id="mOR">—</div><div class="mcs">decided by 1</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tb on" onclick="tab('sc')">Scouting report</button>
+    <button class="tb" onclick="tab('el')">Elo breakdown</button>
+    <button class="tb" onclick="tab('di')">Score dist.</button>
+    <button class="tb" onclick="tab('in')">By inning</button>
+    <button class="tb" onclick="tab('fa')">Key factors</button>
+  </div>
+  <div class="tp on" id="tp-sc"><div class="abox"><h3>AI SCOUTING REPORT</h3><div class="atxt" id="scout">—</div></div></div>
+  <div class="tp" id="tp-el">
+    <div class="abox">
+      <h3>ELO BREAKDOWN</h3>
+      <table class="elo-table" id="eloTable"></table>
+    </div>
+  </div>
+  <div class="tp" id="tp-di">
+    <div class="lr"><div class="li"><div class="ld" style="background:#4f8ef7"></div><span id="la1">Away</span></div><div class="li"><div class="ld" style="background:#ef4444"></div><span id="lh1">Home</span></div></div>
+    <div class="cw"><canvas id="dc"></canvas></div>
+  </div>
+  <div class="tp" id="tp-in">
+    <div class="lr"><div class="li"><div class="ld" style="background:#4f8ef7"></div><span id="la2">Away</span></div><div class="li"><div class="ld" style="background:#ef4444"></div><span id="lh2">Home</span></div></div>
+    <div class="iw"><canvas id="ic"></canvas></div>
+  </div>
+  <div class="tp" id="tp-fa"><div class="abox"><h3>KEY FACTORS</h3><ul id="fl" style="list-style:none"></ul></div></div>
+</div>
+
+<!-- Injury modal -->
+<div class="inj-modal-bg" id="injModalBg">
+  <div class="inj-modal">
+    <h3 id="injModalTitle">Add Injury / Lineup Change</h3>
+    <div class="inj-modal-label">PLAYER TYPE</div>
+    <select id="injType" onchange="updateInjPreview()">
+      <option value="">— select position —</option>
+      <optgroup label="Elite bat (franchise cornerstone)">
+        <option value="elite_bat_out">Elite bat OUT (Judge, Ohtani, Soto level)</option>
+        <option value="star_bat_out">Star bat OUT (All-Star starter)</option>
+        <option value="solid_bat_out">Solid bat OUT (regular starter)</option>
+      </optgroup>
+      <optgroup label="Pitcher changes">
+        <option value="elite_sp_scratch">Ace scratch (day-of, bullpen scramble)</option>
+        <option value="closer_out">Closer unavailable</option>
+        <option value="setup_out">Key setup man unavailable</option>
+      </optgroup>
+      <optgroup label="Lineup changes">
+        <option value="catcher_rest">Catcher rest day</option>
+        <option value="leadoff_out">Leadoff hitter out</option>
+        <option value="cleanup_out">Cleanup hitter out</option>
+        <option value="bench_only">Bench player only (minimal impact)</option>
+      </optgroup>
+      <optgroup label="Bullpen">
+        <option value="bp_heavy_prev">Bullpen overused prev 2 days</option>
+        <option value="bp_fresh">Bullpen fully rested (advantage)</option>
+      </optgroup>
+    </select>
+    <div class="inj-modal-label">PLAYER NAME (optional)</div>
+    <input type="text" id="injName" placeholder="e.g. Aaron Judge" />
+    <div class="inj-modal-label">SEVERITY ADJUSTMENT</div>
+    <input type="range" id="injSeverity" min="50" max="150" value="100" oninput="updateInjPreview()" />
+    <div class="inj-impact-preview" id="injPreview">Select a type to see impact</div>
+    <div class="inj-modal-footer">
+      <button class="inj-cancel-btn" onclick="closeInjModal()">Cancel</button>
+      <button class="inj-confirm-btn" onclick="confirmInj()">Add to simulation</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// TEAM OFFENSIVE ELO  (base 1500, range ~1200-1800)
+// Derived from: wRC+, OPS, R/G, K%, Barrel%, 2026 actual data
+// Sources: Baseball America, Fox Sports, Baseball Reference 2026
+// ═══════════════════════════════════════════════════════════════════
+const TELO = {
+  // [offElo, wRC+(approx), R/G(approx), kPct, barrelPct, platoonLHP, platoonRHP, bullpenEra, bullpenXfip, bpFatigue]
+  //  offElo  wRC+ R/G   K%   Brl  vLHP  vRHP  bpERA bpXFIP fat
+  ATL:[1720, 118, 5.4, .215, .095, 1.08, 1.10, 3.45, 3.55, .05], // most runs scored, best overall
+  LAD:[1710, 120, 5.2, .220, .100, 1.06, 1.09, 3.20, 3.30, .04], // highest OPS in MLB
+  NYY:[1680, 112, 4.9, .218, .088, 1.05, 1.07, 3.45, 3.55, .05], // 2nd in AL
+  TOR:[1640, 110, 4.8, .222, .085, 1.04, 1.06, 3.85, 3.90, .07],
+  HOU:[1600, 105, 4.6, .225, .082, 1.02, 1.04, 3.35, 3.45, .05],
+  TB: [1660, 108, 4.9, .210, .087, 1.05, 1.06, 3.50, 3.55, .04], // best record in MLB 32-15
+  BAL:[1610, 106, 4.7, .220, .083, 1.03, 1.05, 3.60, 3.70, .06],
+  BOS:[1560, 100, 4.4, .228, .079, .98, 1.01, 3.80, 3.90, .07],  // struggling early
+  CLE:[1580, 102, 4.5, .218, .080, 1.00, 1.02, 3.55, 3.65, .05],
+  MIN:[1560, 101, 4.4, .225, .079, .99, 1.01, 3.90, 4.00, .07],
+  DET:[1540, 98, 4.3, .230, .076, .97, .99, 3.90, 4.00, .07],
+  KC: [1520, 96, 4.2, .228, .075, .96, .98, 4.10, 4.20, .07],
+  SEA:[1570, 102, 4.5, .235, .080, .98, 1.02, 3.30, 3.40, .04],
+  TEX:[1550, 100, 4.4, .228, .079, .99, 1.01, 3.75, 3.85, .06],
+  LAA:[1380, 82, 3.6, .248, .065, .82, .85, 4.20, 4.35, .09],  // worst team 2026
+  OAK:[1430, 88, 3.9, .240, .070, .87, .90, 4.40, 4.50, .09],
+  PHI:[1580, 102, 4.5, .225, .081, .99, 1.02, 3.65, 3.75, .07],  // slow start
+  NYM:[1480, 92, 4.0, .232, .073, .91, .94, 3.75, 3.85, .07],  // lost 12 in a row in April
+  WSH:[1650, 108, 5.53,.218, .086, 1.05, 1.07, 4.50, 4.60, .09],// most R/G 2026!
+  MIA:[1420, 87, 3.8, .250, .068, .86, .89, 4.10, 4.20, .08],
+  CHC:[1620, 108, 4.8, .220, .084, 1.04, 1.06, 3.80, 3.90, .07], // best home record
+  MIL:[1590, 104, 4.6, .218, .082, 1.01, 1.03, 3.60, 3.70, .06],
+  STL:[1540, 98, 4.3, .225, .078, .97, .99, 3.70, 3.80, .06],
+  CIN:[1510, 95, 4.2, .238, .075, .93, .96, 4.20, 4.30, .08],
+  PIT:[1480, 91, 4.0, .242, .071, .89, .92, 4.30, 4.40, .08],
+  CWS:[1410, 85, 3.7, .252, .066, .83, .86, 4.80, 4.90, .10],
+  SD: [1590, 103, 4.5, .225, .081, 1.01, 1.03, 3.40, 3.50, .05],
+  SF: [1550, 100, 4.4, .228, .079, .98, 1.01, 3.55, 3.65, .06],
+  LAD_alt:[1710,120,5.2,.220,.100,1.06,1.09,3.20,3.30,.04],
+  ARI:[1570, 101, 4.5, .228, .079, .99, 1.01, 3.75, 3.85, .06],
+  COL:[1530, 98, 4.3, .232, .077, .96, .99, 4.85, 5.00, .09],
+};
+function gT(a){return TELO[a]||[1500,100,4.3,.225,.078,1.0,1.0,4.00,4.10,.06]}
+
+// ═══════════════════════════════════════════════════════════════════
+// PITCHER DATABASE
+// [name, hand(R/L), team, mlbId, era2026, xera, fip, kBBpct, hardHitPct, avgIP]
+// xERA/FIP/K-BB%/HardHit% used to compute pitcherElo
+// pitcherElo = f(xERA, FIP, K-BB%, HardHit%, consistency)
+// ═══════════════════════════════════════════════════════════════════
+const PDB = [
+  // ── NYY ── Fried OD starter, Cole TJS, Schlittler breakout ──────────────
+  ['Max Fried',           'L','NYY',608331, 3.20,  3.10, 3.00, .228,  .292, 6.2],
+  ['Cam Schlittler',      'R','NYY',693645, 2.57,  2.70, 2.85, .245,  .285, 6.1],
+  ['Will Warren',         'R','NYY',null,   4.10,  4.00, 3.90, .168,  .320, 5.6],
+  ['Ryan Weathers',       'L','NYY',null,   4.30,  4.20, 4.10, .158,  .328, 5.3],
+  ['Jack Kochanowicz',    'R','NYY',null,   4.60,  4.50, 4.40, .145,  .340, 5.0],
+  ['Gerrit Cole',         'R','NYY',543037, null,  null, null,  null,  null, 0  ],  // TJS, due back late May/June
+  ['Carlos Rodon',        'L','NYY',607074, null,  null, null,  null,  null, 0  ],  // IL
+
+  // ── BOS ── Crochet ace, Gray/Suarez added via trade/FA ──────────────────
+  ['Garrett Crochet',     'L','BOS',680694, 2.95,  2.85, 2.70, .248,  .278, 6.3],
+  ['Sonny Gray',          'R','BOS',543243, 3.40,  3.28, 3.15, .222,  .290, 6.0],  // traded to BOS
+  ['Ranger Suarez',       'L','BOS',660853, 3.50,  3.40, 3.30, .210,  .295, 6.0],  // 5yr/$130M BOS
+  ['Brayan Bello',        'R','BOS',678394, 3.70,  3.65, 3.55, .195,  .315, 5.9],
+  ['Connelly Early',      'L','BOS',null,   4.50,  4.40, 4.30, .150,  .338, 5.0],
+  ['Johan Oviedo',        'R','BOS',null,   4.40,  4.30, 4.20, .152,  .335, 5.2],
+  ['Tanner Houck',        'R','BOS',669203, null,  null, null,  null,  null, 0  ],  // IL
+  ['Kutter Crawford',     'R','BOS',657651, null,  null, null,  null,  null, 0  ],  // IL
+  ['Patrick Sandoval',    'L','BOS',656945, null,  null, null,  null,  null, 0  ],  // IL (signed BOS)
+
+  // ── BAL ── Burnes ace, Baz/Bassitt added ────────────────────────────────
+  ['Corbin Burnes',       'R','BAL',669203, 3.10,  2.95, 2.80, .240,  .280, 6.3],
+  ['Zach Eflin',          'R','BAL',621244, 3.65,  3.60, 3.55, .190,  .305, 6.0],
+  ['Shane Baz',           'R','BAL',680694, 3.80,  3.72, 3.62, .188,  .308, 5.7],
+  ['Chris Bassitt',       'R','BAL',605200, 4.10,  4.00, 3.90, .170,  .320, 5.7],
+  ['Dean Kremer',         'R','BAL',669372, 4.20,  4.10, 4.00, .162,  .325, 5.6],
+  ['Grayson Rodriguez',   'R','BAL',683002, null,  null, null,  null,  null, 0  ],  // traded to LAA
+
+  // ── TOR ── Gausman/Cease top, Bieber/Berrios/Yesavage IL ────────────────
+  ['Kevin Gausman',       'R','TOR',592332, 3.30,  3.15, 3.00, .235,  .285, 6.2],
+  ['Dylan Cease',         'R','TOR',656302, 3.20,  3.05, 2.90, .248,  .278, 6.2],  // 7yr/$210M TOR
+  ['Eric Lauer',          'L','TOR',641553, 4.20,  4.10, 4.00, .162,  .325, 5.4],
+  ['Cody Ponce',          'R','TOR',null,   4.50,  4.40, 4.30, .148,  .338, 5.1],
+  ['Max Scherzer',        'R','TOR',453286, 4.20,  4.10, 4.00, .162,  .328, 5.4],
+  ['Trey Yesavage',       'R','TOR',null,   null,  null, null,  null,  null, 0  ],  // IL shoulder
+  ['Shane Bieber',        'R','TOR',669456, null,  null, null,  null,  null, 0  ],  // IL forearm
+  ['Jose Berrios',        'R','TOR',621248, null,  null, null,  null,  null, 0  ],  // IL elbow
+
+  // ── TB ──────────────────────────────────────────────────────────────────
+  ['Shane McClanahan',    'L','TB', 663903, 3.10,  2.95, 2.80, .245,  .278, 6.3],
+  ['Drew Rasmussen',      'R','TB', 656945, 3.60,  3.52, 3.42, .198,  .305, 5.8],
+  ['Ryan Pepiot',         'R','TB', null,   3.80,  3.72, 3.62, .185,  .310, 5.7],
+  ['Taj Bradley',         'R','TB', 686681, 3.80,  3.70, 3.60, .188,  .312, 5.7],
+  ['Nick Martinez',       'R','TB', 593958, 4.20,  4.10, 4.00, .162,  .325, 5.5],
+
+  // ── CLE ──────────────────────────────────────────────────────────────────
+  ['Tanner Bibee',        'R','CLE',686613, 3.75,  3.65, 3.55, .195,  .308, 5.8],
+  ['Gavin Williams',      'R','CLE',682243, 4.10,  4.00, 3.90, .168,  .322, 5.5],
+  ['Logan Allen',         'L','CLE',669255, 4.30,  4.20, 4.10, .158,  .330, 5.3],
+  ['Triston McKenzie',    'R','CLE',663423, 4.00,  3.92, 3.82, .172,  .318, 5.6],
+  ['Shane Bieber',        'R','CLE',669456, null,  null, null,  null,  null, 0  ],  // IL
+
+  // ── MIN ──────────────────────────────────────────────────────────────────
+  ['Joe Ryan',            'R','MIN',666201, 3.50,  3.40, 3.30, .215,  .295, 6.0],
+  ['Pablo Lopez',         'R','MIN',641745, 3.55,  3.45, 3.35, .210,  .295, 6.1],
+  ['Bailey Ober',         'R','MIN',669022, 4.10,  4.00, 3.90, .168,  .320, 5.6],
+  ['Simeon Woods Richardson','R','MIN',null, 4.20, 4.10, 4.00, .162,  .325, 5.4],
+  ['Taj Bradley',         'R','MIN',686681, 3.80,  3.70, 3.60, .188,  .312, 5.7],  // acquired from TB
+  ['Mick Abel',           'R','MIN',null,   4.40,  4.30, 4.20, .152,  .335, 5.2],  // from PHI/Duran trade
+
+  // ── DET ── Skubal ace, Valdez/Verlander signed ──────────────────────────
+  ['Tarik Skubal',        'L','DET',657077, 2.50,  2.35, 2.20, .275,  .268, 6.5],  // healthy 2026
+  ['Framber Valdez',      'L','DET',664285, 3.20,  3.05, 2.90, .235,  .280, 6.4],  // FA to DET
+  ['Jack Flaherty',       'R','DET',656945, 4.00,  3.95, 3.90, .172,  .318, 5.6],
+  ['Justin Verlander',    'R','DET',434538, 4.10,  4.02, 3.92, .168,  .322, 5.5],  // re-signed DET
+  ['Casey Mize',          'R','DET',663554, 4.20,  4.10, 4.00, .162,  .325, 5.4],
+  ['Reese Olson',         'R','DET',686611, null,  null, null,  null,  null, 0  ],  // IL entire season
+
+  // ── KC ───────────────────────────────────────────────────────────────────
+  ['Cole Ragans',         'L','KC', 666142, 3.40,  3.30, 3.20, .220,  .290, 6.0],
+  ['Seth Lugo',           'R','KC', 607625, 3.50,  3.40, 3.30, .210,  .295, 6.1],
+  ['Kris Bubic',          'L','KC', null,   4.00,  3.92, 3.82, .172,  .315, 5.6],
+  ['Michael Wacha',       'R','KC', 608379, 4.20,  4.10, 4.00, .162,  .325, 5.5],
+  ['Noah Cameron',        'R','KC', null,   4.50,  4.40, 4.30, .148,  .338, 5.1],
+  ['Alec Marsh',          'R','KC', 680694, null,  null, null,  null,  null, 0  ],  // IL
+
+  // ── CWS ──────────────────────────────────────────────────────────────────
+  ['Shane Smith',         'R','CWS',null,   3.86,  3.78, 3.68, .182,  .312, 5.7],
+  ['Anthony Kay',         'L','CWS',null,   4.80,  4.70, 4.60, .138,  .345, 5.0],
+  ['Davis Martin',        'R','CWS',null,   4.60,  4.50, 4.40, .145,  .340, 5.1],
+  ['Sean Burke',          'R','CWS',null,   5.00,  4.90, 4.80, .130,  .355, 4.8],
+  ['Erick Fedde',         'R','CWS',621403, 4.50,  4.40, 4.30, .148,  .338, 5.2],
+
+  // ── HOU ── Arrighetti recalled/hot, Brown IL ────────────────────────────
+  ['Spencer Arrighetti',  'R','HOU',681293, 2.00,  2.30, 2.50, .258,  .285, 6.0],
+  ['Ronel Blanco',        'R','HOU',669234, 3.80,  3.70, 3.60, .190,  .310, 5.8],
+  ['Tatsuya Imai',        'R','HOU',null,   4.20,  4.10, 4.00, .162,  .325, 5.5],
+  ['Lance McCullers Jr.', 'R','HOU',547379, 4.30,  4.20, 4.10, .160,  .328, 5.4],
+  ['Cristian Javier',     'R','HOU',660432, 4.50,  4.38, 4.25, .152,  .335, 5.2],
+  ['Mike Burrows',        'R','HOU',null,   4.10,  4.00, 3.90, .168,  .320, 5.5],
+  ['Hunter Brown',        'R','HOU',682847, null,  null, null,  null,  null, 0  ],  // shoulder IL
+
+  // ── LAA ── Soriano OD, Rodriguez from BAL ───────────────────────────────
+  ['Jose Soriano',        'R','LAA',673540, 3.40,  3.30, 3.20, .218,  .290, 6.0],
+  ['Yusei Kikuchi',       'L','LAA',579328, 3.90,  3.80, 3.70, .180,  .315, 5.8],  // from TOR to LAA
+  ['Reid Detmers',        'L','LAA',682668, 4.00,  3.90, 3.80, .175,  .315, 5.7],
+  ['Grayson Rodriguez',   'R','LAA',683002, 3.80,  3.70, 3.60, .188,  .308, 5.7],  // traded from BAL
+  ['Ryan Johnson',        'R','LAA',null,   4.40,  4.30, 4.20, .152,  .335, 5.2],
+  ['Jack Kochanowicz',    'R','LAA',null,   4.60,  4.50, 4.40, .145,  .340, 5.0],
+  ['Alek Manoah',         'R','LAA',null,   4.80,  4.68, 4.55, .138,  .345, 5.0],
+
+  // ── SEA ──────────────────────────────────────────────────────────────────
+  ['Logan Gilbert',       'R','SEA',669302, 3.40,  3.25, 3.10, .225,  .285, 6.2],
+  ['Luis Castillo',       'R','SEA',622766, 3.60,  3.45, 3.30, .215,  .292, 6.0],
+  ['George Kirby',        'R','SEA',669923, 3.50,  3.35, 3.20, .220,  .288, 6.1],
+  ['Bryan Woo',           'R','SEA',686775, 3.80,  3.70, 3.60, .190,  .308, 5.7],
+  ['Emilio Pagan',        'R','SEA',null,   4.30,  4.20, 4.10, .158,  .328, 5.3],
+
+  // ── TEX ── deGrom healthy, Gore via trade ───────────────────────────────
+  ['Jacob deGrom',        'R','TEX',594798, 2.80,  2.60, 2.45, .268,  .268, 6.4],
+  ['Nathan Eovaldi',      'R','TEX',429722, 3.90,  3.80, 3.75, .178,  .312, 5.8],
+  ['MacKenzie Gore',      'L','TEX',669293, 3.50,  3.40, 3.30, .210,  .295, 5.9],  // traded to TEX
+  ['Jack Leiter',         'R','TEX',null,   4.00,  3.92, 3.82, .172,  .315, 5.5],
+  ['Jacob Latz',          'L','TEX',null,   4.60,  4.50, 4.40, .145,  .340, 5.0],
+  ['Cody Bradford',       'L','TEX',683667, null,  null, null,  null,  null, 0  ],  // IL
+  ['Jordan Montgomery',   'L','TEX',622259, null,  null, null,  null,  null, 0  ],  // IL
+
+  // ── OAK ──────────────────────────────────────────────────────────────────
+  ['Luis Severino',       'R','OAK',622663, 3.60,  3.52, 3.42, .198,  .305, 5.8],
+  ['Jeffrey Springs',     'L','OAK',622772, 3.80,  3.72, 3.62, .185,  .310, 5.7],
+  ['Aaron Civale',        'R','OAK',null,   4.30,  4.20, 4.10, .158,  .328, 5.4],
+  ['Jacob Lopez',         'L','OAK',null,   4.60,  4.50, 4.40, .145,  .340, 5.0],
+  ['Luis Morales',        'R','OAK',null,   4.80,  4.70, 4.60, .138,  .348, 4.9],
+  ['Zack Littell',        'R','OAK',null,   4.30,  4.20, 4.10, .158,  .328, 5.4],
+
+  // ── ATL ── Sale/Strider top, Max Fried left for NYY ─────────────────────
+  ['Chris Sale',          'L','ATL',519242, 2.40,  2.20, 2.10, .280,  .262, 6.5],
+  ['Spencer Strider',     'R','ATL',675911, 3.00,  2.80, 2.65, .265,  .270, 6.3],
+  ['Reynaldo Lopez',      'R','ATL',591972, 3.60,  3.50, 3.40, .205,  .298, 5.9],
+  ['Grant Holmes',        'R','ATL',null,   4.20,  4.10, 4.00, .162,  .325, 5.4],
+  ['Charlie Morton',      'R','ATL',450172, 4.30,  4.20, 4.10, .158,  .328, 5.4],
+
+  // ── PHI ── Wheeler ace, Sanchez runner-up CY ────────────────────────────
+  ['Zack Wheeler',        'R','PHI',554430, 3.10,  2.90, 2.75, .260,  .272, 6.5],
+  ['Cristopher Sanchez',  'L','PHI',677651, 3.20,  3.10, 3.00, .240,  .282, 6.2],  // CY runner-up 2025
+  ['Aaron Nola',          'R','PHI',605400, 3.80,  3.70, 3.60, .192,  .308, 6.0],
+  ['Spencer Turnbull',    'R','PHI',607623, 3.80,  3.72, 3.62, .185,  .308, 5.7],
+  ['Andrew Painter',      'R','PHI',null,   5.25,  5.10, 5.00, .120,  .368, 4.8],
+  ['Ranger Suarez',       'L','PHI',660853, null,  null, null,  null,  null, 0  ],  // now BOS
+
+  // ── NYM ──────────────────────────────────────────────────────────────────
+  ['Kodai Senga',         'R','NYM',685364, 3.20,  3.05, 2.90, .240,  .280, 6.2],
+  ['Sean Manaea',         'L','NYM',628317, 3.70,  3.60, 3.50, .198,  .308, 5.8],
+  ['Christian Scott',     'R','NYM',686769, 3.60,  3.50, 3.40, .205,  .298, 5.9],
+  ['Jose Quintana',       'L','NYM',521692, 4.50,  4.40, 4.30, .148,  .338, 5.2],
+  ['Adrian Houser',       'R','NYM',608039, 4.30,  4.20, 4.10, .160,  .328, 5.4],
+
+  // ── MIA ──────────────────────────────────────────────────────────────────
+  ['Sandy Alcantara',     'R','MIA',645261, 3.40,  3.25, 3.10, .225,  .285, 6.2],
+  ['Jesus Luzardo',       'L','MIA',660612, 3.80,  3.70, 3.60, .188,  .310, 5.7],
+  ['Edward Cabrera',      'R','MIA',672515, null,  null, null,  null,  null, 0  ],  // traded to CHC
+  ['Trevor Rogers',       'L','MIA',663474, 4.50,  4.40, 4.30, .148,  .338, 5.1],
+  ['Braxton Garrett',     'L','MIA',656684, 4.30,  4.20, 4.10, .158,  .328, 5.3],
+
+  // ── WSH ── Gore traded to TEX, rotation depleted ────────────────────────
+  ['Cade Cavalli',        'R','WSH',686769, 4.25,  4.15, 4.05, .165,  .322, 5.5],
+  ['Jake Irvin',          'R','WSH',668934, 4.20,  4.10, 4.00, .162,  .328, 5.4],
+  ['Josiah Gray',         'R','WSH',669016, 4.40,  4.30, 4.20, .152,  .335, 5.2],
+  ['Miles Mikolas',       'R','WSH',541650, 4.60,  4.50, 4.40, .145,  .340, 5.0],
+  ['Brad Lord',           'R','WSH',null,   5.00,  4.90, 4.80, .130,  .355, 4.8],
+  ['MacKenzie Gore',      'L','WSH',669293, null,  null, null,  null,  null, 0  ],  // traded to TEX
+  ['Trevor Williams',     'R','WSH',571946, null,  null, null,  null,  null, 0  ],  // IL
+
+  // ── MIL ──────────────────────────────────────────────────────────────────
+  ['Brandon Woodruff',    'R','MIL',622772, 3.50,  3.40, 3.30, .212,  .293, 6.0],
+  ['Jacob Misiorowski',   'R','MIL',null,   3.30,  3.20, 3.10, .232,  .285, 6.0],
+  ['Colin Rea',           'R','MIL',592661, 4.10,  4.00, 3.90, .168,  .320, 5.6],
+  ['DL Hall',             'L','MIL',null,   4.00,  3.92, 3.82, .175,  .315, 5.5],
+  ['Robert Gasser',       'L','MIL',null,   4.30,  4.20, 4.10, .158,  .328, 5.3],
+  ['Freddy Peralta',      'R','MIL',642547, null,  null, null,  null,  null, 0  ],  // possibly traded
+
+  // ── CHC ── Horton ace, Cabrera via trade ─────────────────────────────────
+  ['Cade Horton',         'R','CHC',null,   3.20,  3.10, 3.00, .238,  .282, 6.1],  // OD starter
+  ['Matthew Boyd',        'L','CHC',571901, 3.59,  3.50, 3.40, .205,  .298, 5.9],
+  ['Edward Cabrera',      'R','CHC',672515, 4.00,  3.90, 3.80, .175,  .315, 5.6],  // traded from MIA
+  ['Shota Imanaga',       'L','CHC',null,   2.90,  2.78, 2.65, .258,  .270, 6.3],  // re-signed QO
+  ['Jameson Taillon',     'R','CHC',592791, 4.20,  4.10, 4.00, .162,  .325, 5.4],
+  ['Justin Steele',       'L','CHC',656617, null,  null, null,  null,  null, 0  ],  // IL
+
+  // ── STL ──────────────────────────────────────────────────────────────────
+  ['Matthew Liberatore',  'L','STL',669305, 4.00,  3.92, 3.82, .172,  .315, 5.6],
+  ['Dustin May',          'R','STL',null,   3.98,  3.90, 3.80, .174,  .315, 5.7],
+  ['Michael McGreevy',    'R','STL',null,   4.30,  4.20, 4.10, .158,  .328, 5.4],
+  ['Andre Pallante',      'R','STL',669160, 4.40,  4.30, 4.20, .152,  .335, 5.2],
+  ['Richard Fitts',       'R','STL',null,   4.50,  4.40, 4.30, .148,  .340, 5.1],
+
+  // ── CIN ──────────────────────────────────────────────────────────────────
+  ['Hunter Greene',       'R','CIN',668881, 3.50,  3.35, 3.20, .225,  .285, 6.0],
+  ['Andrew Abbott',       'L','CIN',683760, 3.60,  3.50, 3.40, .205,  .298, 5.9],
+  ['Nick Lodolo',         'L','CIN',669302, 3.70,  3.60, 3.50, .198,  .308, 5.8],
+  ['Brady Singer',        'R','CIN',669432, 4.00,  3.95, 3.90, .172,  .315, 5.8],  // traded from KC
+  ['Rhett Lowder',        'R','CIN',null,   4.20,  4.10, 4.00, .162,  .325, 5.4],
+
+  // ── PIT ──────────────────────────────────────────────────────────────────
+  ['Paul Skenes',         'R','PIT',686789, 2.80,  2.60, 2.45, .268,  .268, 6.4],
+  ['Mitch Keller',        'R','PIT',645261, 3.90,  3.80, 3.70, .182,  .312, 5.8],
+  ['Quinn Priester',      'R','PIT',683730, 4.20,  4.10, 4.00, .162,  .325, 5.4],
+  ['Marco Gonzales',      'L','PIT',594798, 4.40,  4.30, 4.20, .152,  .335, 5.2],
+  ['Jose Urquidy',        'R','PIT',null,   4.60,  4.50, 4.40, .145,  .340, 5.0],
+
+  // ── LAD ── Yamamoto OD, 6-man rotation ──────────────────────────────────
+  ['Yoshinobu Yamamoto',  'R','LAD',808967, 3.00,  2.82, 2.68, .258,  .270, 6.3],
+  ['Blake Snell',         'L','LAD',605483, 3.40,  3.28, 3.15, .228,  .288, 6.0],
+  ['Tyler Glasnow',       'R','LAD',607192, 3.40,  3.25, 3.10, .230,  .285, 6.0],
+  ['Shohei Ohtani',       'L','LAD',660271, 0.97,  1.20, 1.35, .318,  .245, 6.5],
+  ['Roki Sasaki',         'R','LAD',null,   3.20,  3.10, 3.00, .240,  .282, 6.1],
+  ['Emmet Sheehan',       'R','LAD',null,   4.00,  3.90, 3.80, .175,  .315, 5.6],
+  ['Gavin Stone',         'R','LAD',687900, 3.80,  3.70, 3.60, .190,  .308, 5.7],
+
+  // ── SD ── King stayed, Cease left, Buehler/Marquez added ────────────────
+  ['Michael King',        'R','SD', 656945, 3.30,  3.20, 3.10, .232,  .285, 6.0],  // 3yr/$75M re-signed
+  ['Yu Darvish',          'R','SD', 506433, 3.50,  3.40, 3.30, .212,  .295, 6.0],
+  ['Joe Musgrove',        'R','SD', 571946, 3.80,  3.72, 3.62, .185,  .308, 5.8],
+  ['Walker Buehler',      'R','SD', null,   4.20,  4.10, 4.00, .162,  .325, 5.4],
+  ['German Marquez',      'R','SD', 608566, 4.40,  4.30, 4.20, .152,  .335, 5.2],
+  ['Randy Vasquez',       'R','SD', null,   3.80,  3.72, 3.62, .185,  .310, 5.6],
+  ['Dylan Cease',         'R','SD', 656302, null,  null, null,  null,  null, 0  ],  // now TOR
+
+  // ── SF ── Webb ace, Mahle added ─────────────────────────────────────────
+  ['Logan Webb',          'R','SF', 657277, 3.10,  2.92, 2.78, .258,  .272, 6.4],
+  ['Tyler Mahle',         'R','SF', 641933, 3.80,  3.70, 3.60, .190,  .308, 5.7],  // signed SF
+  ['Kyle Harrison',       'L','SF', 682243, 3.70,  3.60, 3.50, .198,  .308, 5.7],
+  ['Robbie Ray',          'L','SF', 519144, 4.00,  3.92, 3.82, .172,  .318, 5.6],
+  ['Adrian Houser',       'R','SF', 608039, 4.30,  4.20, 4.10, .158,  .328, 5.3],
+  ['Mason Black',         'R','SF', 686771, 4.10,  4.00, 3.90, .168,  .322, 5.5],
+
+  // ── ARI ── Gallen stays, Kelly IL, Eduardo Rodriguez added ──────────────
+  ['Zac Gallen',          'R','ARI',668678, 3.30,  3.18, 3.05, .235,  .285, 6.1],
+  ['Ryne Nelson',         'R','ARI',null,   3.80,  3.70, 3.60, .188,  .310, 5.7],
+  ['Eduardo Rodriguez',   'L','ARI',608716, 4.00,  3.92, 3.82, .172,  .318, 5.6],
+  ['Brandon Pfaadt',      'R','ARI',686613, 3.90,  3.80, 3.70, .182,  .312, 5.7],
+  ['Michael Soroka',      'R','ARI',null,   4.50,  4.40, 4.30, .148,  .338, 5.1],
+  ['Merrill Kelly',       'R','ARI',502211, null,  null, null,  null,  null, 0  ],  // IL back
+
+  // ── COL ──────────────────────────────────────────────────────────────────
+  ['Kyle Freeland',       'L','COL',622608, 4.80,  4.70, 4.60, .142,  .345, 5.3],
+  ['Cal Quantrill',       'R','COL',615698, 5.00,  4.90, 4.80, .132,  .352, 5.2],
+  ['Austin Gomber',       'L','COL',642758, 5.20,  5.10, 5.00, .118,  .368, 4.9],
+  ['Ryan Feltner',        'R','COL',682847, 5.40,  5.28, 5.15, .110,  .378, 4.8],
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// PITCHER ELO CALCULATION
+// Base: 1500. Range: ~1100-1800
+// xERA contributes 40%, FIP 25%, K-BB% 20%, HardHit% 15%
+// Consistency (avgIP) adds ±50 pts
+// ═══════════════════════════════════════════════════════════════════
+function calcPitcherElo(p){
+  if(!p||!p[5])return 1400; // injured/unknown
+  const[,,,, era, xera, fip, kbb, hh, ip]=p;
+  // convert to z-score relative to league avg, then to elo points
+  // league avg: xERA 3.90, FIP 3.85, K-BB% .185, HardHit .310, IP 5.7
+  const LXERA=3.90,LFIP=3.85,LKBB=.185,LHH=.310,LIP=5.7;
+  const SD_XERA=0.65,SD_FIP=0.60,SD_KBB=.045,SD_HH=.028,SD_IP=0.5;
+  let pts=1500;
+  pts+=((LXERA-(xera||LXERA))/SD_XERA)*120*0.40; // lower=better
+  pts+=((LFIP-(fip||LFIP))/SD_FIP)*120*0.25;
+  pts+=(((kbb||LKBB)-LKBB)/SD_KBB)*120*0.20;
+  pts+=((LHH-(hh||LHH))/SD_HH)*120*0.15;
+  pts+=(((ip||LIP)-LIP)/SD_IP)*50; // innings consistency bonus
+  return Math.round(Math.max(1050,Math.min(1850,pts)));
+}
+
+// Precompute pitcher Elos
+const PELO={};
+PDB.forEach(p=>{PELO[p[0]]=calcPitcherElo(p);});
+
+const TEAMS_LIST=[
+  {a:'ARI',n:'Arizona Diamondbacks',park:'Chase Field',pf:1.03,roof:true, lat:33.4453,lon:-112.0667},
+  {a:'ATL',n:'Atlanta Braves',park:'Truist Park',pf:1.01,roof:false,lat:33.8908,lon:-84.4678},
+  {a:'BAL',n:'Baltimore Orioles',park:'Camden Yards',pf:1.04,roof:false,lat:39.2838,lon:-76.6218},
+  {a:'BOS',n:'Boston Red Sox',park:'Fenway Park',pf:1.05,roof:false,lat:42.3467,lon:-71.0972},
+  {a:'CHC',n:'Chicago Cubs',park:'Wrigley Field',pf:1.02,roof:false,lat:41.9484,lon:-87.6553},
+  {a:'CWS',n:'Chicago White Sox',park:'Guaranteed Rate Field',pf:1.01,roof:false,lat:41.8299,lon:-87.6338},
+  {a:'CIN',n:'Cincinnati Reds',park:'Great American Ball Park',pf:1.07,roof:false,lat:39.0979,lon:-84.5082},
+  {a:'CLE',n:'Cleveland Guardians',park:'Progressive Field',pf:0.97,roof:false,lat:41.4962,lon:-81.6852},
+  {a:'COL',n:'Colorado Rockies',park:'Coors Field',pf:1.18,roof:false,lat:39.7559,lon:-104.9942},
+  {a:'DET',n:'Detroit Tigers',park:'Comerica Park',pf:0.97,roof:false,lat:42.3390,lon:-83.0485},
+  {a:'HOU',n:'Houston Astros',park:'Minute Maid Park',pf:1.00,roof:true, lat:29.7572,lon:-95.3555},
+  {a:'KC',n:'Kansas City Royals',park:'Kauffman Stadium',pf:0.97,roof:false,lat:39.0517,lon:-94.4803},
+  {a:'LAA',n:'Los Angeles Angels',park:'Angel Stadium',pf:0.99,roof:false,lat:33.8003,lon:-117.8827},
+  {a:'LAD',n:'Los Angeles Dodgers',park:'Dodger Stadium',pf:0.96,roof:false,lat:34.0739,lon:-118.2400},
+  {a:'MIA',n:'Miami Marlins',park:'LoanDepot Park',pf:0.94,roof:true, lat:25.7781,lon:-80.2197},
+  {a:'MIL',n:'Milwaukee Brewers',park:'American Family Field',pf:1.01,roof:true, lat:43.0280,lon:-87.9712},
+  {a:'MIN',n:'Minnesota Twins',park:'Target Field',pf:0.98,roof:false,lat:44.9817,lon:-93.2781},
+  {a:'NYM',n:'New York Mets',park:'Citi Field',pf:0.95,roof:false,lat:40.7571,lon:-73.8458},
+  {a:'NYY',n:'New York Yankees',park:'Yankee Stadium',pf:1.03,roof:false,lat:40.8296,lon:-73.9262},
+  {a:'OAK',n:'Oakland Athletics',park:'Sutter Health Park',pf:0.97,roof:false,lat:38.5802,lon:-121.4958},
+  {a:'PHI',n:'Philadelphia Phillies',park:'Citizens Bank Park',pf:1.05,roof:false,lat:39.9061,lon:-75.1665},
+  {a:'PIT',n:'Pittsburgh Pirates',park:'PNC Park',pf:0.98,roof:false,lat:40.4469,lon:-80.0057},
+  {a:'SD',n:'San Diego Padres',park:'Petco Park',pf:0.92,roof:false,lat:32.7073,lon:-117.1573},
+  {a:'SF',n:'San Francisco Giants',park:'Oracle Park',pf:0.93,roof:false,lat:37.7786,lon:-122.3893},
+  {a:'SEA',n:'Seattle Mariners',park:'T-Mobile Park',pf:0.96,roof:true, lat:47.5914,lon:-122.3325},
+  {a:'STL',n:'St. Louis Cardinals',park:'Busch Stadium',pf:0.98,roof:false,lat:38.6226,lon:-90.1928},
+  {a:'TB',n:'Tampa Bay Rays',park:'Tropicana Field',pf:0.97,roof:true, lat:27.7683,lon:-82.6534},
+  {a:'TEX',n:'Texas Rangers',park:'Globe Life Field',pf:1.02,roof:true, lat:32.7513,lon:-97.0831},
+  {a:'TOR',n:'Toronto Blue Jays',park:'Rogers Centre',pf:1.01,roof:true, lat:43.6414,lon:-79.3894},
+  {a:'WSH',n:'Washington Nationals',park:'Nationals Park',pf:1.01,roof:false,lat:38.8730,lon:-77.0074}
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// COMBINED ELO → RUNS PER INNING
+// Offense Elo vs Pitcher Elo → expected run rate
+// ═══════════════════════════════════════════════════════════════════
+function eloToRPI(offElo, pitElo, parkFactor, platoonMult){
+  // LEAGUE_RPI = 4.50 R/G / 9 = 0.500 runs/half-inning at average matchup
+  const LEAGUE_RPI = 0.500;
+  const eDiff = offElo - pitElo;
+  // Sigmoid: eDiff=0 → mult=0.5 → scalar=1.0 (league average)
+  // ±400 Elo ≈ ±30% run rate adjustment
+  const mult = 1 / (1 + Math.pow(10, -eDiff / 400));
+  const scalar = 1.0 + (mult - 0.5) * 2.4;
+  // Hard cap: floor at 2.7 R/G (0.30 RPI), ceiling at 7.0 R/G (0.778 RPI)
+  const clampedScalar = Math.max(0.60, Math.min(1.40, scalar));
+  return LEAGUE_RPI * clampedScalar * parkFactor * platoonMult;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+const ST={away:{p:null,form:'neutral'},home:{p:null,form:'neutral'}};
+let TM_={},dc=null,ic=null;
+
+// ═══════════════════════════════════════════════════════════════════
+// WEATHER SYSTEM
+// API: Open-Meteo (free, no key, CORS-safe from file:// and http://)
+// Wind direction: degrees → cardinal + meaningful impact on field
+// ═══════════════════════════════════════════════════════════════════
+
+// Park-specific wind orientation (degrees that blow OUT to CF/power alleys)
+// Based on actual field orientation
+const PARK_WIND_OUT = {
+  CHC:180, // Wrigley: S wind blows out to Waveland Ave — the famous one
+  COL:135, // Coors: SE wind blows to RF power alley
+  NYY:270, // Yankee: W wind blows out to RF porch
+  BOS:270, // Fenway: W wind blows out over the Monster
+  CIN:180, // GABP: S wind blows out to RF
+  PHI:270, // Citizens Bank: W blows out to RF
+  ATL:180, // Truist: S wind
+  LAD:270, // Dodger: W wind
+  SD:270,  // Petco: W
+  SF:270,  // Oracle: W (but often suppresses with marine layer)
+  BAL:180,
+  PIT:270,
+  STL:270,
+  DET:270,
+  CLE:270,
+  MIN:180,
+  KC:270,
+  TEX:180,
+  LAA:270,
+  SEA:270,
+  NYM:270,
+  WSH:180,
+  MIA:180,
+  MIL:270,
+  TOR:270,
+  BOS:270,
+  OAK:270,
+};
+
+let WX = null; // current weather data
+
+function degToCard(deg){
+  const dirs=['N','NE','E','SE','S','SW','W','NW'];
+  return dirs[Math.round(deg/45)%8];
+}
+
+function windImpact(teamAbbr, windSpeedMph, windDirDeg, isRoof){
+  if(isRoof) return {mult:1.0, label:'Roof closed — weather neutral', cls:'neutral'};
+  if(windSpeedMph < 5) return {mult:1.0, label:`Calm wind (${windSpeedMph} mph) — minimal effect`, cls:'neutral'};
+
+  const parkOut = PARK_WIND_OUT[teamAbbr] || 270;
+  // Angular difference between wind direction and "out" direction
+  let diff = Math.abs(windDirDeg - parkOut) % 360;
+  if(diff > 180) diff = 360 - diff;
+  // diff=0: wind blowing straight out, diff=180: straight in
+  const outFactor = Math.cos(diff * Math.PI / 180); // +1=out, -1=in
+
+  // Wind effect: at 15mph straight out = +8% runs, straight in = -8%
+  // Scales linearly with speed, caps at 25mph
+  const speedEffect = Math.min(windSpeedMph, 25) / 25;
+  const mult = 1.0 + outFactor * speedEffect * 0.12;
+
+  const card = degToCard(windDirDeg);
+  if(outFactor > 0.3){
+    return {mult, label:`${windSpeedMph} mph ${card} wind blowing OUT — balls carrying, favors hitters`, cls:'boost'};
+  } else if(outFactor < -0.3){
+    return {mult, label:`${windSpeedMph} mph ${card} wind blowing IN — suppresses offense`, cls:'suppress'};
+  } else {
+    return {mult, label:`${windSpeedMph} mph ${card} crosswind — limited HR effect`, cls:'neutral'};
+  }
+}
+
+function tempImpact(tempF){
+  // Ball carries ~0.5% more per 10°F above 72°F, less below
+  // Source: physics of baseball, Alan Nathan research
+  const baseline = 72;
+  const mult = 1.0 + (tempF - baseline) * 0.0008;
+  return Math.max(0.93, Math.min(1.07, mult));
+}
+
+function humidityImpact(rhPct){
+  // Contrary to popular belief, humid air is LESS dense (water vapor
+  // displaces heavier N2/O2), so high humidity slightly boosts carry
+  // Effect is small: ~0.5% at 90% vs 30% RH
+  const mult = 1.0 + (rhPct - 50) * 0.00005;
+  return Math.max(0.98, Math.min(1.02, mult));
+}
+
+function calcWeatherMult(teamAbbr, wx, isRoof){
+  if(!wx) return {total:1.0, wind:{mult:1.0,label:'No weather data',cls:'neutral'}, breakdown:''};
+  const wImp = windImpact(teamAbbr, wx.windMph, wx.windDir, isRoof);
+  const tMult = tempImpact(wx.tempF);
+  const hMult = humidityImpact(wx.humidity);
+  const total = wImp.mult * tMult * hMult;
+  const pctChange = ((total - 1) * 100).toFixed(1);
+  const sign = pctChange > 0 ? '+' : '';
+  const breakdown = `Temp: ${sign !== '' && pctChange > 0 ? '+' : ''}${((tMult-1)*100).toFixed(1)}% · Humidity: ${((hMult-1)*100).toFixed(1)}% · Wind: ${((wImp.mult-1)*100).toFixed(1)}% → Total: ${sign}${pctChange}%`;
+  return {total:Math.max(0.88, Math.min(1.15, total)), wind:wImp, breakdown, pctChange:parseFloat(pctChange)};
+}
+
+async function fetchWeather(){
+  const hAbbr = document.getElementById('homeTeam').value;
+  const hTeam = TEAMS_LIST.find(t=>t.a===hAbbr);
+  if(!hTeam){return;}
+
+  const btn = document.getElementById('wxFetchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Fetching...';
+  document.getElementById('wxContent').innerHTML = '<p class="wx-msg">Fetching from Open-Meteo...</p>';
+
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${hTeam.lat}&longitude=${hTeam.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code&wind_speed_unit=mph&temperature_unit=fahrenheit&forecast_days=1`;
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const data = await resp.json();
+    const c = data.current;
+    WX = {
+      tempF:    Math.round(c.temperature_2m),
+      humidity: Math.round(c.relative_humidity_2m),
+      windMph:  Math.round(c.wind_speed_10m),
+      windDir:  Math.round(c.wind_direction_10m),
+      code:     c.weather_code,
+      source:   'live'
+    };
+    // Hide manual form, show live data
+    document.getElementById('wxManualForm').style.display = 'none';
+    document.getElementById('wxManualBtn').textContent = 'Enter manually';
+    renderWeather(hTeam);
+  } catch(e) {
+    // Auto-fetch failed (file:// CORS or offline) — offer manual entry
+    document.getElementById('wxContent').innerHTML = `
+      <p class="wx-msg" style="color:var(--amber)">
+        Auto-fetch blocked (requires http:// server) — use <strong style="color:var(--amber)">Enter manually</strong> to input today's conditions, or skip and simulate without weather.
+      </p>`;
+    // Auto-open manual form for convenience
+    document.getElementById('wxManualForm').style.display = 'block';
+    document.getElementById('wxManualBtn').textContent = 'Hide form';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Auto-fetch';
+}
+
+function toggleManualWx(){
+  const form = document.getElementById('wxManualForm');
+  const btn  = document.getElementById('wxManualBtn');
+  const open = form.style.display === 'none';
+  form.style.display = open ? 'block' : 'none';
+  btn.textContent = open ? 'Hide form' : 'Enter manually';
+  if(open && !WX){
+    // Pre-fill with sensible defaults for today
+    const hAbbr = document.getElementById('homeTeam').value;
+    const hTeam = TEAMS_LIST.find(t=>t.a===hAbbr);
+    document.getElementById('mwxTemp').value = 72;
+    document.getElementById('mwxHumidity').value = 55;
+    document.getElementById('mwxWind').value = 8;
+  }
+}
+
+function applyManualWx(){
+  const temp     = parseFloat(document.getElementById('mwxTemp').value);
+  const humidity = parseFloat(document.getElementById('mwxHumidity').value);
+  const windMph  = parseFloat(document.getElementById('mwxWind').value);
+  const windDir  = parseFloat(document.getElementById('mwxWindDir').value);
+  // Only apply if at least temp is entered
+  if(isNaN(temp)) return;
+  WX = {
+    tempF:    temp    || 72,
+    humidity: humidity|| 55,
+    windMph:  windMph || 0,
+    windDir:  windDir || 180,
+    code:     0,
+    source:   'manual'
+  };
+  const hAbbr = document.getElementById('homeTeam').value;
+  const hTeam = TEAMS_LIST.find(t=>t.a===hAbbr);
+  if(hTeam) renderWeather(hTeam);
+}
+
+function wxCodeToDesc(code){
+  if(code===0) return 'Clear';
+  if(code<=3) return 'Partly cloudy';
+  if(code<=49) return 'Foggy';
+  if(code<=59) return 'Drizzle';
+  if(code<=69) return 'Rain';
+  if(code<=79) return 'Snow';
+  if(code<=82) return 'Rain showers';
+  if(code<=99) return 'Thunderstorm ⚠️';
+  return 'Unknown';
+}
+
+function renderWeather(hTeam){
+  if(!WX) return;
+  const card = degToCard(WX.windDir);
+  const wxImp = calcWeatherMult(hTeam.a, WX, hTeam.roof||false);
+  const pct = wxImp.pctChange;
+  const pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+  const pctColor = pct > 1 ? '#4ade80' : pct < -1 ? '#f87171' : '#8a95a3';
+
+  // Rotate arrow emoji based on wind direction coming FROM
+  const arrowDeg = (WX.windDir + 180) % 360;
+
+  const srcBadge = WX.source==='manual'
+    ? '<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.2);font-weight:600;margin-left:6px">MANUAL</span>'
+    : '<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:rgba(34,197,94,.1);color:#4ade80;border:1px solid rgba(34,197,94,.2);font-weight:600;margin-left:6px">LIVE</span>';
+
+  document.getElementById('wxContent').innerHTML = `
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${hTeam.park} · ${hTeam.n}${srcBadge}</div>
+    <div class="wx-grid">
+      <div class="wx-stat">
+        <div class="wx-stat-label">TEMPERATURE</div>
+        <div class="wx-stat-val">${WX.tempF}°F</div>
+        <div class="wx-stat-sub">${Math.round((WX.tempF-32)*5/9)}°C · ${wxCodeToDesc(WX.code)}</div>
+      </div>
+      <div class="wx-stat">
+        <div class="wx-stat-label">WIND</div>
+        <div class="wx-stat-val">${WX.windMph} mph</div>
+        <div class="wx-stat-sub"><span class="wind-arrow" style="display:inline-block;transform:rotate(${arrowDeg}deg)">↑</span> ${card} ${hTeam.roof ? '· roof' : ''}</div>
+      </div>
+      <div class="wx-stat">
+        <div class="wx-stat-label">HUMIDITY</div>
+        <div class="wx-stat-val">${WX.humidity}%</div>
+        <div class="wx-stat-sub">${WX.humidity > 70 ? 'Humid' : WX.humidity < 35 ? 'Dry' : 'Normal'}</div>
+      </div>
+      <div class="wx-stat">
+        <div class="wx-stat-label">RUN IMPACT</div>
+        <div class="wx-stat-val" style="color:${pctColor}">${pctStr}</div>
+        <div class="wx-stat-sub">vs baseline</div>
+      </div>
+    </div>
+    <div class="wx-impact ${wxImp.wind.cls}">
+      <div class="wx-impact-dot"></div>
+      <span>${wxImp.wind.label}</span>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px;font-family:var(--mono)">${wxImp.breakdown}</div>
+    ${hTeam.roof ? '<div style="font-size:11px;color:var(--amber);margin-top:5px">⚠️ Retractable roof — weather effect nullified if closed</div>' : ''}
+    ${WX.code >= 80 ? '<div style="font-size:11px;color:#f87171;margin-top:5px">⚠️ Precipitation in forecast — possible game delay</div>' : ''}
+  `;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// INJURY SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+
+// Elo delta presets per injury type
+// Positive = helps team, negative = hurts team
+const INJ_PRESETS = {
+  elite_bat_out:   {eloOff:-55, eloPit:0,  bpElo:0,   label:'Elite bat OUT',    pos:'BAT'},
+  star_bat_out:    {eloOff:-35, eloPit:0,  bpElo:0,   label:'Star bat OUT',     pos:'BAT'},
+  solid_bat_out:   {eloOff:-18, eloPit:0,  bpElo:0,   label:'Starter bat OUT',  pos:'BAT'},
+  elite_sp_scratch:{eloOff:0,  eloPit:-80, bpElo:-40, label:'Ace scratched',    pos:'SP'},
+  closer_out:      {eloOff:0,  eloPit:0,  bpElo:-35,  label:'Closer out',       pos:'RP'},
+  setup_out:       {eloOff:0,  eloPit:0,  bpElo:-20,  label:'Setup man out',    pos:'RP'},
+  catcher_rest:    {eloOff:-12, eloPit:0,  bpElo:0,   label:'Catcher rest',     pos:'C'},
+  leadoff_out:     {eloOff:-22, eloPit:0,  bpElo:0,   label:'Leadoff out',      pos:'OF/IF'},
+  cleanup_out:     {eloOff:-28, eloPit:0,  bpElo:0,   label:'Cleanup out',      pos:'BAT'},
+  bench_only:      {eloOff:-5,  eloPit:0,  bpElo:0,   label:'Bench only',       pos:'BEN'},
+  bp_heavy_prev:   {eloOff:0,  eloPit:0,  bpElo:-25,  label:'Bullpen taxed',    pos:'BP'},
+  bp_fresh:        {eloOff:0,  eloPit:0,  bpElo:+20,  label:'Bullpen fresh',    pos:'BP'},
+};
+
+// injuries[side] = array of {type, name, severity(50-150), preset}
+const INJURIES = {away:[], home:[]};
+let injModalSide = 'away';
+
+function openInjModal(side){
+  injModalSide = side;
+  const abbr = document.getElementById(side+'Team').value;
+  document.getElementById('injModalTitle').textContent = `Add Injury — ${abbr}`;
+  document.getElementById('injType').value = '';
+  document.getElementById('injName').value = '';
+  document.getElementById('injSeverity').value = 100;
+  document.getElementById('injPreview').textContent = 'Select a type to see impact';
+  document.getElementById('injModalBg').classList.add('open');
+}
+
+function closeInjModal(){
+  document.getElementById('injModalBg').classList.remove('open');
+}
+
+function updateInjPreview(){
+  const type = document.getElementById('injType').value;
+  const sev = parseInt(document.getElementById('injSeverity').value);
+  if(!type){ document.getElementById('injPreview').textContent='Select a type to see impact'; return; }
+  const p = INJ_PRESETS[type];
+  const parts = [];
+  if(p.eloOff !== 0) parts.push(`Off Elo ${p.eloOff>0?'+':''}${Math.round(p.eloOff*sev/100)}`);
+  if(p.eloPit !== 0) parts.push(`Pit Elo ${p.eloPit>0?'+':''}${Math.round(p.eloPit*sev/100)}`);
+  if(p.bpElo  !== 0) parts.push(`BP Elo ${p.bpElo>0?'+':''}${Math.round(p.bpElo*sev/100)}`);
+  document.getElementById('injPreview').textContent = parts.join(' · ') + (sev!==100?` (${sev}% severity)`:'');
+}
+
+function confirmInj(){
+  const type = document.getElementById('injType').value;
+  if(!type) return;
+  const name = document.getElementById('injName').value.trim() || INJ_PRESETS[type].label;
+  const sev = parseInt(document.getElementById('injSeverity').value);
+  INJURIES[injModalSide].push({type, name, sev, preset:INJ_PRESETS[type]});
+  renderInjuries(injModalSide);
+  closeInjModal();
+}
+
+function removeInj(side, idx){
+  INJURIES[side].splice(idx,1);
+  renderInjuries(side);
+}
+
+function renderInjuries(side){
+  const list = document.getElementById(side+'InjList');
+  const total = document.getElementById(side+'InjTotal');
+  if(INJURIES[side].length === 0){
+    list.innerHTML = '<span class="inj-empty">No injuries added</span>';
+    total.textContent = '';
+    return;
+  }
+  let totalOff=0, totalPit=0, totalBp=0;
+  list.innerHTML = INJURIES[side].map((inj,i)=>{
+    const eOff = Math.round(inj.preset.eloOff * inj.sev/100);
+    const ePit = Math.round(inj.preset.eloPit * inj.sev/100);
+    const eBp  = Math.round(inj.preset.bpElo  * inj.sev/100);
+    totalOff+=eOff; totalPit+=ePit; totalBp+=eBp;
+    const parts=[];
+    if(eOff!==0) parts.push(`Off ${eOff>0?'+':''}${eOff}`);
+    if(ePit!==0) parts.push(`Pit ${ePit>0?'+':''}${ePit}`);
+    if(eBp !==0) parts.push(`BP ${eBp>0?'+':''}${eBp}`);
+    return `<div class="inj-item">
+      <span class="inj-pos">${inj.preset.pos}</span>
+      <span class="inj-name">${inj.name}</span>
+      <span class="inj-impact">${parts.join(' · ')}</span>
+      <span class="inj-remove" onclick="removeInj('${side}',${i})">×</span>
+    </div>`;
+  }).join('');
+  const totalParts=[];
+  if(totalOff!==0) totalParts.push(`Off Elo ${totalOff>0?'+':''}${totalOff}`);
+  if(totalPit!==0) totalParts.push(`Pit Elo ${totalPit>0?'+':''}${totalPit}`);
+  if(totalBp !==0) totalParts.push(`BP Elo ${totalBp>0?'+':''}${totalBp}`);
+  total.textContent = totalParts.length ? 'Total: '+totalParts.join(' · ') : '';
+}
+
+function getInjuryDeltas(side){
+  return INJURIES[side].reduce((acc,inj)=>{
+    acc.offElo += Math.round(inj.preset.eloOff * inj.sev/100);
+    acc.pitElo += Math.round(inj.preset.eloPit * inj.sev/100);
+    acc.bpElo  += Math.round(inj.preset.bpElo  * inj.sev/100);
+    return acc;
+  }, {offElo:0, pitElo:0, bpElo:0});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONFIDENCE METER
+// Score 0-100 based on 5 factors:
+//   1. Elo gap size (bigger gap = more confident)
+//   2. Pitcher Elo certainty (elite vs unknown)
+//   3. Weather data quality
+//   4. Lineup confirmation (injuries entered?)
+//   5. Win probability decisiveness (far from 50/50)
+// ═══════════════════════════════════════════════════════════════════
+
+function calcConfidence(params){
+  const {eloDiff, aPitElo, hPitElo, wxMult, awp, hasInjuries, aBp, hBp, wxFetched} = params;
+
+  const factors = [];
+  let score = 0;
+
+  // 1. Elo gap — bigger gap = more confident projection
+  const absEloDiff = Math.abs(eloDiff);
+  const eloScore = Math.min(25, absEloDiff / 6); // max 25pts at 150+ Elo gap
+  score += eloScore;
+  factors.push({
+    label: 'Elo gap',
+    val: absEloDiff > 80 ? 'Large' : absEloDiff > 35 ? 'Moderate' : 'Tight',
+    pts: Math.round(eloScore),
+    cls: absEloDiff > 60 ? 'good' : absEloDiff > 25 ? 'warn' : 'bad'
+  });
+
+  // 2. Pitcher quality certainty (known elite pitchers = more predictable)
+  const avgPitElo = (aPitElo + hPitElo) / 2;
+  const pitScore = avgPitElo > 1600 ? 20 : avgPitElo > 1500 ? 15 : avgPitElo > 1400 ? 10 : 5;
+  score += pitScore;
+  factors.push({
+    label: 'Pitcher certainty',
+    val: avgPitElo > 1600 ? 'Elite starters' : avgPitElo > 1500 ? 'Known starters' : 'Uncertain/TBD',
+    pts: pitScore,
+    cls: avgPitElo > 1600 ? 'good' : avgPitElo > 1450 ? 'warn' : 'bad'
+  });
+
+  // 3. Lineup confirmation (injuries entered reduces uncertainty)
+  const injCount = INJURIES.away.length + INJURIES.home.length;
+  const injScore = injCount > 0 ? 20 : 12; // paradox: entering injuries = you've confirmed lineup
+  score += injScore;
+  factors.push({
+    label: 'Lineup confirmed',
+    val: injCount > 0 ? 'Injuries logged' : 'Assumed full',
+    pts: injScore,
+    cls: injCount > 0 ? 'good' : 'warn'
+  });
+
+  // 4. Weather data
+  const wxScore = wxFetched ? (Math.abs(wxMult-1) > 0.05 ? 20 : 18) : 8;
+  score += wxScore;
+  factors.push({
+    label: 'Weather data',
+    val: wxFetched ? (Math.abs(wxMult-1) > 0.03 ? 'Fetched — significant' : 'Fetched — minimal') : 'Not fetched',
+    pts: wxScore,
+    cls: wxFetched ? 'good' : 'warn'
+  });
+
+  // 5. Win probability decisiveness
+  const favPct = Math.max(awp, 1-awp);
+  const wpScore = favPct > 0.65 ? 15 : favPct > 0.58 ? 10 : favPct > 0.52 ? 6 : 3;
+  score += wpScore;
+  factors.push({
+    label: 'Win prob edge',
+    val: favPct > 0.65 ? 'Clear favorite' : favPct > 0.58 ? 'Moderate edge' : 'Near coin flip',
+    pts: wpScore,
+    cls: favPct > 0.62 ? 'good' : favPct > 0.54 ? 'warn' : 'bad'
+  });
+
+  // Penalty for bullpen games (more variance = less confident)
+  if(aBp || hBp){ score -= 10; }
+
+  score = Math.max(10, Math.min(100, Math.round(score)));
+  const level = score >= 72 ? 'HIGH' : score >= 50 ? 'MEDIUM' : 'LOW';
+  const cls   = score >= 72 ? 'high' : score >= 50 ? 'medium' : 'low';
+  const barColor = score >= 72 ? '#4ade80' : score >= 50 ? '#f59e0b' : '#f87171';
+
+  return {score, level, cls, barColor, factors};
+}
+
+function renderConfidence(conf){
+  const badge = document.getElementById('confBadge');
+  const bar   = document.getElementById('confBar');
+  const fcts  = document.getElementById('confFactors');
+
+  badge.textContent = conf.level;
+  badge.className   = 'conf-badge ' + conf.cls;
+  bar.style.width   = conf.score + '%';
+  bar.style.background = conf.barColor;
+
+  fcts.innerHTML = conf.factors.map(f=>`
+    <div class="cf-item">
+      <div class="cf-dot ${f.cls}"></div>
+      <span>${f.label}</span>
+      <span class="cf-val">${f.val}</span>
+    </div>
+  `).join('');
+}
+
+// Close modal on background click
+document.addEventListener('click', e=>{
+  if(e.target.id==='injModalBg') closeInjModal();
+});
+
+const ANTHROPIC_API_KEY=''; // optional
+
+function getFormMult(form){return form==='hot'?1.07:form==='cold'?0.93:1.0;}
+function getPlatoon(pitHand,teamData){
+  return pitHand==='LHP'?teamData[5]:teamData[6]; // vLHP or vRHP
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+function init(){
+  ['awayTeam','homeTeam'].forEach((id,i)=>{
+    const s=document.getElementById(id);
+    TEAMS_LIST.forEach(t=>s.innerHTML+=`<option value="${t.a}">${t.a} — ${t.n}</option>`);
+    s.value=i?'BOS':'NYY';
+    updateTeloStrip(i?'home':'away');
+  });
+}
+
+function onTeamChange(side){
+  updateTeloStrip(side);
+  // Auto-clear weather when home team changes so stale data isn't used
+  if(side==='home'){
+    WX=null;
+    document.getElementById('wxContent').innerHTML='<p class="wx-msg">Home team changed — auto-fetch or enter conditions manually.</p>';
+    document.getElementById('wxFetchBtn').textContent='Auto-fetch';
+    document.getElementById('wxManualForm').style.display='none';
+    document.getElementById('wxManualBtn').textContent='Enter manually';
+  }
+}
+
+function updateTeloStrip(side){
+  const abbr=document.getElementById(side+'Team').value;
+  const td=gT(abbr);
+  const elo=td[0];
+  const pct=Math.round((elo-1200)/700*100);
+  const clamp=Math.max(5,Math.min(95,pct));
+  document.getElementById(side+'TeloBar').style.width=clamp+'%';
+  document.getElementById(side+'TeloVal').textContent=elo;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════════════════════════════════
+function onIn(side){
+  const v=document.getElementById(side+'In').value.trim();
+  clearTimeout(TM_[side]);
+  const dd=document.getElementById(side+'Dd');
+  if(v.length<2){dd.classList.remove('open');return;}
+  TM_[side]=setTimeout(()=>srch(side,v),180);
+}
+function onBl(side){setTimeout(()=>document.getElementById(side+'Dd').classList.remove('open'),200);}
+
+function srch(side,q){
+  const dd=document.getElementById(side+'Dd');
+  const lq=q.toLowerCase();
+  const seen=new Set();
+  const hits=PDB.filter(p=>{
+    if(seen.has(p[0]))return false;
+    if(p[0].toLowerCase().includes(lq)){seen.add(p[0]);return true;}
+    return false;
+  }).slice(0,10);
+  if(!hits.length){dd.innerHTML='<div class="ddm">No pitcher found</div>';dd.classList.add('open');return;}
+  dd.innerHTML='';
+  hits.forEach(p=>{
+    const[nm,hd,tm,,era,xera,fip,kbb]=p;
+    const isL=hd==='L';
+    const pElo=PELO[nm]||1400;
+    const isIL = !era && ip===0;
+    const eraStr = isIL ? '— IL/Out' : era ? era.toFixed(2)+' ERA' : '— no data';
+    const xeraStr = xera ? xera.toFixed(2)+' xERA' : '';
+    const div=document.createElement('div');div.className='ddi';
+    div.innerHTML=`<span class="ddn">${nm} <span class="ddt">${tm}</span></span><div class="ddr"><span class="ddh${isL?' l':''}">${hd}HP</span><span class="dde" style="${isIL?'color:#f87171':''}">${eraStr}</span>${!isIL?`<span class="ddelo">Elo ${pElo}</span>`:''}</div>`;
+    if(isIL){ div.style.opacity='0.5'; div.title='Player is on IL / not active'; }
+    div.onmousedown=()=>{ if(!isIL) pick(side,p); };
+    dd.appendChild(div);
+  });
+  dd.classList.add('open');
+}
+
+function pick(side,pRow){
+  document.getElementById(side+'Dd').classList.remove('open');
+  document.getElementById(side+'In').value='';
+  const[nm,hd,tm,mid,era,xera,fip,kbb,hh,ip]=pRow;
+  const pElo=PELO[nm]||1400;
+  ST[side].p={name:nm,hand:hd+'HP',team:tm,mid,era:era||4.00,xera:xera||3.90,fip:fip||3.85,kbb:kbb||.185,hh:hh||.310,ip:ip||5.7,pElo,isBp:false};
+  renderPill(side);
+  document.getElementById(side+'PS').style.display='none';
+}
+
+function renderPill(side){
+  const p=ST[side].p;if(!p)return;
+  const pill=document.getElementById(side+'Pill');
+  const isL=p.hand==='LHP';
+  pill.innerHTML=`
+    <span class="ph${isL?' l':''}">${p.hand}</span>
+    <span class="pn">${p.name}</span>
+    <span class="pstats">${p.era.toFixed(2)} ERA · ${p.xera.toFixed(2)} xERA · FIP ${p.fip.toFixed(2)}</span>
+    <span class="pelo">Elo ${p.pElo}</span>
+    <span class="pclear" onclick="clrP('${side}')">×</span>
+  `;
+  pill.style.display='flex';
+}
+
+function clrP(side){
+  ST[side].p=null;
+  document.getElementById(side+'Pill').style.display='none';
+  document.getElementById(side+'PS').style.display='block';
+  document.getElementById(side+'In').value='';
+}
+
+function setForm(side,f){
+  const cur=ST[side].form;
+  ST[side].form=(cur===f?'neutral':f);
+  const hot=document.getElementById(side+'Hot');
+  const cold=document.getElementById(side+'Cold');
+  hot.className='form-btn'+(ST[side].form==='hot'?' hot':'');
+  cold.className='form-btn'+(ST[side].form==='cold'?' cold':'');
+}
+
+function toggleBp(side){
+  const cb=document.getElementById(side+'Bp');
+  const tg=document.getElementById(side+'BpT');
+  tg.classList.toggle('on',cb.checked);
+  if(cb.checked){
+    document.getElementById(side+'PS').style.display='none';
+    document.getElementById(side+'Pill').style.display='none';
+    const td=gT(document.getElementById(side+'Team').value);
+    // Bullpen composite: uses bullpen ERA + xFIP, higher volatility
+    const bpEra=td[7],bpXfip=td[8];
+    const bpFip=(bpEra+bpXfip)/2;
+    // Bullpen pitcher Elo: derived from bullpen ERA/xFIP
+    const bpElo=Math.round(1500+(3.90-bpEra)/0.65*120);
+    ST[side].p={name:'Bullpen',hand:'RHP',era:bpEra,xera:bpXfip,fip:bpFip,kbb:.182,hh:.315,ip:1.2,pElo:bpElo,isBp:true,volatility:1.25};
+  }else{
+    document.getElementById(side+'PS').style.display='block';
+    ST[side].p=null;clrP(side);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MONTE CARLO  — Elo-driven inning simulation
+// ═══════════════════════════════════════════════════════════════════
+function simInn(rpi, volatility){
+  // rpi = expected runs this half-inning (~0.28 to ~0.72 range after Elo conversion)
+  // League avg = 0.500 rpi = 4.5 R/G
+  // Probabilities based on empirical MLB inning run distributions
+  const vol = volatility || 1.0;
+  const lambda = Math.max(0.15, Math.min(0.85, rpi * vol));
+  const ratio = lambda / 0.500;
+  // At ratio=1 (avg): P(0)=0.720, P(1)=0.155, P(2)=0.075, P(3)=0.030, P(4)=0.012, P(5+)=0.008
+  const p0 = Math.max(0.38, 0.720 - 0.22 * (ratio - 1));
+  const p1 = Math.min(0.25, 0.155 * Math.pow(ratio, 0.80));
+  const p2 = Math.min(0.18, 0.075 * Math.pow(ratio, 1.10));
+  const p3 = Math.min(0.10, 0.030 * Math.pow(ratio, 1.40));
+  const p4 = Math.min(0.06, 0.012 * Math.pow(ratio, 1.70));
+  const r = Math.random();
+  const c1 = p0;
+  const c2 = c1 + p1;
+  const c3 = c2 + p2;
+  const c4 = c3 + p3;
+  const c5 = c4 + p4;
+  if(r < c1) return 0;
+  if(r < c2) return 1;
+  if(r < c3) return 2;
+  if(r < c4) return 3;
+  if(r < c5) return 4;
+  return 5 + Math.floor(Math.random() * (vol > 1.1 ? 3 : 2));
+}
+
+function runMC(aRPI,hRPI,aBpRPI,hBpRPI,aFt,hFt,aBp,hBp,aVol,hVol,N){
+  let aw=0,tA=0,tH=0;
+  const iA=new Array(9).fill(0),iH=new Array(9).fill(0),fr={},mg=[];
+  for(let s=0;s<N;s++){
+    let ga=0,gh=0;
+    for(let i=0;i<9;i++){
+      // Starter degradation: TTO (times through order) effect
+      // 1st TTO (inn 1-3): 1.0x, 2nd TTO (inn 4-6): 1.05x, 3rd TTO (inn 7+): 0 (bullpen takes over)
+      const starterOn=i<3?1.0:i<6?1.05:0;
+      const aFade=aBp||starterOn===0?(1+aFt*Math.max(0,i-5)):starterOn;
+      const hFade=hBp||starterOn===0?(1+hFt*Math.max(0,i-5)):starterOn;
+      const ar=aBp||starterOn===0?aBpRPI*aFade:aRPI*starterOn;
+      const hr=hBp||starterOn===0?hBpRPI*hFade:hRPI*starterOn;
+      const ra=simInn(ar,aBp||starterOn===0?aVol:1.0);
+      const rh=simInn(hr,hBp||starterOn===0?hVol:1.0);
+      ga+=ra;gh+=rh;iA[i]+=ra;iH[i]+=rh;
+    }
+    if(ga===gh){Math.random()<.5?ga++:gh++;}
+    tA+=ga;tH+=gh;if(ga>gh)aw++;
+    const k=ga+'-'+gh;fr[k]=(fr[k]||0)+1;
+    mg.push(Math.abs(ga-gh));
+  }
+  return{
+    awp:aw/N,aA:tA/N,aH:tH/N,
+    iA:iA.map(v=>v/N),iH:iH.map(v=>v/N),
+    top:Object.entries(fr).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>({k,p:v/N})),
+    bl:mg.filter(m=>m>=5).length/N,or:mg.filter(m=>m===1).length/N
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════════
+function tab(n){
+  document.querySelectorAll('.tb').forEach((b,i)=>b.classList.toggle('on',['sc','el','di','in','fa'][i]===n));
+  document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
+  document.getElementById('tp-'+n).classList.add('on');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN RUN
+// ═══════════════════════════════════════════════════════════════════
+async function runSim(){
+  const aAbbr=document.getElementById('awayTeam').value;
+  const hAbbr=document.getElementById('homeTeam').value;
+  document.getElementById('eb').innerHTML='';
+  const err=m=>{document.getElementById('eb').innerHTML=`<div class="eb">${m}</div>`;};
+  if(aAbbr===hAbbr){err('Select two different teams.');return;}
+  const aBp=document.getElementById('awayBp').checked;
+  const hBp=document.getElementById('homeBp').checked;
+  if(!aBp&&!ST.away.p){err('Select an away starter or check Bullpen game.');return;}
+  if(!hBp&&!ST.home.p){err('Select a home starter or check Bullpen game.');return;}
+
+  const aTeam=TEAMS_LIST.find(t=>t.a===aAbbr),hTeam=TEAMS_LIST.find(t=>t.a===hAbbr);
+  const aTd=gT(aAbbr),hTd=gT(hAbbr);
+  const aP=ST.away.p,hP=ST.home.p;
+  const pf=document.getElementById('oPk').checked?hTeam.pf:1.0;
+
+  // Weather multiplier — applies to BOTH teams' run rates (affects total, not side)
+  const wxImpact = WX ? calcWeatherMult(hAbbr, WX, hTeam.roof||false) : {total:1.0};
+  const wxMult = wxImpact.total;
+  const uPl=document.getElementById('oPl').checked;
+  const uBp=document.getElementById('oBp').checked;
+  const uMu=document.getElementById('oMu').checked;
+
+  const aForm=getFormMult(ST.away.form);
+  const hForm=getFormMult(ST.home.form);
+
+  // Platoon multipliers: away offense vs home pitcher hand, and vice versa
+  const aPlatoon=uPl?getPlatoon(hP.hand,aTd):1.0; // away lineup vs home pitcher
+  const hPlatoon=uPl?getPlatoon(aP.hand,hTd):1.0; // home lineup vs away pitcher
+
+  // Combined Elo scores for display
+  // Apply injury deltas to base Elos
+  const aInjD = getInjuryDeltas('away');
+  const hInjD = getInjuryDeltas('home');
+
+  const aOffElo = aTd[0] + aInjD.offElo;
+  const hOffElo = hTd[0] + hInjD.offElo;
+  const aPitElo = aP.pElo + aInjD.pitElo;
+  const hPitElo = hP.pElo + hInjD.pitElo;
+  // Bullpen Elo adjustments applied below
+  // "Combined" = your offense Elo + opponent's pitcher weakness (1800-pitElo = how hittable they are)
+  const aCombined=Math.round((aOffElo+(1800-hPitElo))/2);
+  const hCombined=Math.round((hOffElo+(1800-aPitElo))/2);
+
+  // RPI for each team's offense against opponent pitcher
+  const aRPI=eloToRPI(aOffElo,hPitElo,pf,aPlatoon*aForm)*wxMult;
+  const hRPI=eloToRPI(hOffElo,aPitElo,pf,hPlatoon*hForm)*1.02*wxMult; // home field + weather
+
+  // Bullpen RPIs
+  const aBpEra=aTd[7],hBpEra=hTd[7];
+  const aBpElo=Math.round(1500+(3.90-aBpEra)/0.65*120) + aInjD.bpElo;
+  const hBpElo=Math.round(1500+(3.90-hBpEra)/0.65*120) + hInjD.bpElo;
+  const aBpRPI=eloToRPI(aOffElo,hBpElo,pf,aPlatoon*aForm)*wxMult;
+  const hBpRPI=eloToRPI(hOffElo,aBpElo,pf,hPlatoon*hForm)*1.02*wxMult;
+
+  const aFt=uBp?aTd[9]:0,hFt=uBp?hTd[9]:0;
+  const aVol=aP.volatility||1.0,hVol=hP.volatility||1.0;
+
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true;
+  document.getElementById('results').style.display='none';
+  document.getElementById('sb').textContent='Calling AI scouting engine...';
+
+  // ── AI prompt ──
+  const prompt=`You are an MLB sabermetrics expert for 2026. Respond ONLY with valid JSON, no markdown.
+
+Matchup: ${aTeam.n} (${aAbbr}) @ ${hTeam.n} (${hAbbr})
+Away injuries: ${INJURIES.away.length>0?INJURIES.away.map(i=>i.name+' ('+i.preset.label+')').join(', '):'None reported'}
+Home injuries: ${INJURIES.home.length>0?INJURIES.home.map(i=>i.name+' ('+i.preset.label+')').join(', '):'None reported'}
+Away pitcher: ${aP.name} (${aP.hand}, ERA ${aP.era.toFixed(2)}, xERA ${aP.xera.toFixed(2)}, FIP ${aP.fip.toFixed(2)}, K-BB% ${(aP.kbb*100).toFixed(1)}%, HardHit% ${(aP.hh*100).toFixed(1)}%, Pitcher Elo ${aPitElo})${aBp?' — BULLPEN GAME':''}
+Home pitcher: ${hP.name} (${hP.hand}, ERA ${hP.era.toFixed(2)}, xERA ${hP.xera.toFixed(2)}, FIP ${hP.fip.toFixed(2)}, K-BB% ${(hP.kbb*100).toFixed(1)}%, HardHit% ${(hP.hh*100).toFixed(1)}%, Pitcher Elo ${hPitElo})${hBp?' — BULLPEN GAME':''}
+Away team off Elo: ${aOffElo} | wRC+ ~${aTd[1]} | R/G ~${aTd[2]} | K% ${(aTd[3]*100).toFixed(0)}% | Barrel% ${(aTd[4]*100).toFixed(1)}% | Form: ${ST.away.form}
+Home team off Elo: ${hOffElo} | wRC+ ~${hTd[1]} | R/G ~${hTd[2]} | K% ${(hTd[3]*100).toFixed(0)}% | Barrel% ${(hTd[4]*100).toFixed(1)}% | Form: ${ST.home.form}
+Away bullpen ERA: ${aTd[7]} xFIP: ${aTd[8]} | Home bullpen ERA: ${hTd[7]} xFIP: ${hTd[8]}
+Park: ${hTeam.n} PF ${pf.toFixed(2)} | Weather: ${WX ? `${WX.tempF}°F, wind ${WX.windMph}mph ${degToCard(WX.windDir)}, humidity ${WX.humidity}%, run impact ${((wxMult-1)*100).toFixed(1)}%` : 'not fetched'} | Platoon: away ${(aPlatoon*100-100).toFixed(1)}% adj, home ${(hPlatoon*100-100).toFixed(1)}% adj
+
+Return exactly:
+{"analysis":"3-4 sentence sharp scouting report using these specific stats","matchupNote":"1 sentence on career/recent matchup or bullpen dynamics","aiAdjAwayRPI":<fine-tune multiplier 0.85-1.15 on away run rate>,"aiAdjHomeRPI":<fine-tune multiplier 0.85-1.15 on home run rate>,"factors":[{"factor":"...","impact":"positive|negative|neutral","team":"${aAbbr}|${hAbbr}|both","note":"..."},{"factor":"...","impact":"positive|negative|neutral","team":"${aAbbr}|${hAbbr}|both","note":"..."},{"factor":"...","impact":"positive|negative|neutral","team":"${aAbbr}|${hAbbr}|both","note":"..."},{"factor":"...","impact":"positive|negative|neutral","team":"${aAbbr}|${hAbbr}|both","note":"..."},{"factor":"...","impact":"positive|negative|neutral","team":"${aAbbr}|${hAbbr}|both","note":"..."}]}`;
+
+  let ai=null;
+  if(ANTHROPIC_API_KEY){
+    try{
+      const r=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+      });
+      const d=await r.json();
+      const raw=(d.content||[]).map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
+      ai=JSON.parse(raw);
+    }catch(e){}
+  }
+  if(!ai){
+    const eloEdge=aCombined-hCombined;
+    ai={
+      analysis:`${aP.name} (xERA ${aP.xera.toFixed(2)}, FIP ${aP.fip.toFixed(2)}, Elo ${aPitElo}) vs ${hTeam.n} (Off Elo ${hOffElo}, wRC+ ~${hTd[1]}). ${Math.abs(eloEdge)>30?`Combined Elo edge goes to ${eloEdge>0?aAbbr:hAbbr} by ${Math.abs(eloEdge)} points.`:'Elos are closely matched.'} Add Anthropic API key for full AI narrative analysis.`,
+      matchupNote:`Elo-based simulation — add ANTHROPIC_API_KEY for career matchup analysis.`,
+      aiAdjAwayRPI:1.0,aiAdjHomeRPI:1.0,
+      factors:[
+        {factor:'Off Elo advantage',impact:aOffElo>hOffElo?'positive':'negative',team:aAbbr,note:`${aOffElo} vs ${hOffElo}`},
+        {factor:'Pitcher Elo advantage',impact:aPitElo<hPitElo?'negative':'positive',team:aAbbr,note:`Away ${aPitElo} vs Home ${hPitElo}`},
+        {factor:'Park factor',impact:pf>1.02?'negative':pf<0.98?'positive':'neutral',team:aAbbr,note:`PF ${pf.toFixed(2)}`},
+        {factor:'Platoon edge',impact:aPlatoon>1.03?'positive':aPlatoon<.97?'negative':'neutral',team:aAbbr,note:`Away lineup ${(aPlatoon*100-100).toFixed(1)}% vs ${hP.hand}`},
+        {factor:'Bullpen depth',impact:aTd[7]<hTd[7]?'positive':'negative',team:aAbbr,note:`Away bp ${aTd[7].toFixed(2)} vs Home bp ${hTd[7].toFixed(2)} ERA`}
+      ]
+    };
+  }
+
+  document.getElementById('sb').textContent='Running 10,000 simulations...';
+  await new Promise(r=>setTimeout(r,30));
+
+  const finalARPI=aRPI*ai.aiAdjAwayRPI;
+  const finalHRPI=hRPI*ai.aiAdjHomeRPI;
+  const sim=runMC(finalARPI,finalHRPI,aBpRPI,hBpRPI,aFt,hFt,aBp,hBp,aVol,hVol,10000);
+
+  // ── Render ──
+  const aWin=sim.aA>sim.aH;
+  const awpPct=(sim.awp*100).toFixed(1);
+  const hwpPct=((1-sim.awp)*100).toFixed(1);
+
+  document.getElementById('awayLbl').textContent=aAbbr;
+  document.getElementById('homeLbl').textContent=hAbbr;
+  document.getElementById('awayR').textContent=sim.aA.toFixed(1);
+  document.getElementById('homeR').textContent=sim.aH.toFixed(1);
+  document.getElementById('awayPb').textContent=awpPct+'% win prob';
+  document.getElementById('homePb').textContent=hwpPct+'% win prob';
+  document.getElementById('awayPl2').textContent=aBp?'Bullpen game':aP.name;
+  document.getElementById('homePl2').textContent=hBp?'Bullpen game':hP.name;
+  document.getElementById('awayC').className='sc'+(aWin?' win':'');
+  document.getElementById('homeC').className='sc'+(!aWin?' win':'');
+
+  // Elo matchup bar
+  document.getElementById('emAwayLbl').textContent=aAbbr;
+  document.getElementById('emHomeLbl').textContent=hAbbr;
+  document.getElementById('emAwayElo').textContent=aCombined;
+  document.getElementById('emHomeElo').textContent=hCombined;
+  const total=aCombined+hCombined;
+  const aBarPct=(aCombined/total*100).toFixed(1);
+  const hBarPct=(hCombined/total*100).toFixed(1);
+  document.getElementById('emBarAway').style.width=aBarPct+'%';
+  document.getElementById('emBarHome').style.width=hBarPct+'%';
+  document.getElementById('emAwayPct').textContent=aAbbr+' '+aBarPct+'%';
+  document.getElementById('emHomePct').textContent=hBarPct+'% '+hAbbr;
+
+  document.getElementById('mOU').textContent=(sim.aA+sim.aH).toFixed(1);
+  document.getElementById('mRL').textContent=(Math.max(sim.awp,1-sim.awp)*100).toFixed(0)+'%';
+  document.getElementById('mBl').textContent=(sim.bl*100).toFixed(0)+'%';
+  document.getElementById('mOR').textContent=(sim.or*100).toFixed(0)+'%';
+
+  document.getElementById('scout').textContent=ai.analysis+'\n\n'+ai.matchupNote;
+
+  // Confidence meter
+  const conf = calcConfidence({
+    eloDiff: aCombined - hCombined,
+    aPitElo, hPitElo,
+    wxMult, awp: sim.awp,
+    hasInjuries: INJURIES.away.length + INJURIES.home.length > 0,
+    aBp, hBp,
+    wxFetched: WX !== null
+  });
+  renderConfidence(conf);
+
+  // Elo breakdown table
+  const eloRows=[
+    ['Team off Elo',aOffElo,hOffElo],
+    ['Pitcher Elo',aPitElo,hPitElo],
+    ['Bullpen Elo',aBpElo,hBpElo],
+    ['wRC+ (approx)',aTd[1],hTd[1]],
+    ['Runs/game',aTd[2].toFixed(1),hTd[2].toFixed(1)],
+    ['xERA',aP.xera.toFixed(2),hP.xera.toFixed(2)],
+    ['FIP',aP.fip.toFixed(2),hP.fip.toFixed(2)],
+    ['K-BB%',(aP.kbb*100).toFixed(1)+'%',(hP.kbb*100).toFixed(1)+'%'],
+    ['Hard Hit%',(aP.hh*100).toFixed(1)+'%',(hP.hh*100).toFixed(1)+'%'],
+    ['Platoon mult',(aPlatoon*100).toFixed(1)+'%',(hPlatoon*100).toFixed(1)+'%'],
+    ['Weather mult',WX?((wxMult*100).toFixed(1)+'%'):'—',WX?((wxMult*100).toFixed(1)+'%'):'—'],
+    ['Inj Off Elo adj',aInjD.offElo!==0?(aInjD.offElo>0?'+':'')+aInjD.offElo:'none',hInjD.offElo!==0?(hInjD.offElo>0?'+':'')+hInjD.offElo:'none'],
+    ['Inj BP Elo adj', aInjD.bpElo!==0?(aInjD.bpElo>0?'+':'')+aInjD.bpElo:'none', hInjD.bpElo!==0?(hInjD.bpElo>0?'+':'')+hInjD.bpElo:'none'],
+    ['Recent form',ST.away.form,ST.home.form],
+    ['Proj RPI/inn',finalARPI.toFixed(3),finalHRPI.toFixed(3)],
+  ];
+  const tbl=document.getElementById('eloTable');
+  tbl.innerHTML=`<tr><th>Factor</th><th>${aAbbr}</th><th>${hAbbr}</th><th>Edge</th></tr>`;
+  eloRows.forEach(([lbl,av,hv])=>{
+    const aNum=parseFloat(av),hNum=parseFloat(hv);
+    // Determine which side is better (for Pitcher Elo: higher = better, xERA/FIP: lower = better)
+    const lowerIsBetter=['xERA','FIP','Hard Hit%','Proj RPI/inn'].includes(lbl);
+    let edge='neutral',edgeTeam='—';
+    if(!isNaN(aNum)&&!isNaN(hNum)&&Math.abs(aNum-hNum)>0.001){
+      const aWins=lowerIsBetter?(aNum<hNum):(aNum>hNum);
+      edge=aWins?'a':'h';
+      edgeTeam=aWins?aAbbr:hAbbr;
+    }
+    const cls=edge==='a'?'eta-a':edge==='h'?'eta-h':'eta-n';
+    tbl.innerHTML+=`<tr><td>${lbl}</td><td class="etval">${av}</td><td class="etval">${hv}</td><td><span class="etadv ${cls}">${edgeTeam}</span></td></tr>`;
+  });
+
+  // Factors list
+  const fl=document.getElementById('fl');fl.innerHTML='';
+  (ai.factors||[]).forEach(f=>{
+    const li=document.createElement('li');li.className='fi';
+    const bc=f.impact==='positive'?'bp':f.impact==='negative'?'bn':'bu';
+    li.innerHTML=`<span class="fil">${f.factor}<span class="fit">(${f.team})</span></span><div class="fir"><span class="fin">${f.note}</span><span class="badge ${bc}">${f.impact}</span></div>`;
+    fl.appendChild(li);
+  });
+
+  ['la1','la2'].forEach(id=>document.getElementById(id).textContent=aAbbr);
+  ['lh1','lh2'].forEach(id=>document.getElementById(id).textContent=hAbbr);
+
+  if(dc){dc.destroy();dc=null;} if(ic){ic.destroy();ic=null;}
+  const gc='rgba(255,255,255,0.05)',tc='#505a66';
+
+  dc=new Chart(document.getElementById('dc'),{
+    type:'bar',
+    data:{labels:sim.top.map(s=>s.k),datasets:[{
+      data:sim.top.map(s=>parseFloat((s.p*100).toFixed(1))),
+      backgroundColor:sim.top.map(s=>{const[a,h]=s.k.split('-').map(Number);return a>h?'rgba(79,142,247,.7)':'rgba(239,68,68,.7)';}),
+      borderWidth:0,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw}% of games`}}},
+      scales:{y:{title:{display:true,text:'% of simulations',color:tc,font:{size:11}},grid:{color:gc},ticks:{color:tc,font:{size:10}}},
+        x:{title:{display:true,text:'score (away–home)',color:tc,font:{size:11}},grid:{display:false},ticks:{color:tc,font:{size:10},autoSkip:false,maxRotation:45}}}}
+  });
+
+  ic=new Chart(document.getElementById('ic'),{
+    type:'bar',
+    data:{labels:['1st','2nd','3rd','4th','5th','6th','7th','8th','9th'],datasets:[
+      {label:aAbbr,data:sim.iA.map(v=>parseFloat(v.toFixed(2))),backgroundColor:'rgba(79,142,247,.7)',borderRadius:3},
+      {label:hAbbr,data:sim.iH.map(v=>parseFloat(v.toFixed(2))),backgroundColor:'rgba(239,68,68,.7)',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{title:{display:true,text:'avg runs',color:tc,font:{size:11}},grid:{color:gc},ticks:{color:tc,font:{size:10}}},
+        x:{grid:{display:false},ticks:{color:tc,font:{size:10}}}}}
+  });
+
+  document.getElementById('results').style.display='block';
+  document.getElementById('sb').textContent=`✓ Done — ${aAbbr} ${awpPct}% / ${hAbbr} ${hwpPct}% | Elo: ${aCombined>hCombined?aAbbr:hAbbr} +${Math.abs(aCombined-hCombined)}${WX?' | Weather: '+((wxMult>=1?'+':'')+((wxMult-1)*100).toFixed(1))+'%':''}`;
+  btn.disabled=false;
+}
+
+init();
+</script>
+</body>
+</html>
+
+</template>
+
+<script>
+function showPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('visible'));
+  document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('visible');
+  document.getElementById('nav-'+p).classList.add('active');
+  if(p==='game')loadGameProjectorFrame();
+}
+function loadGameProjectorFrame(){
+  const frame=document.getElementById('game-projector-frame');
+  if(frame && !frame.dataset.loaded){
+    frame.srcdoc=document.getElementById('game-projector-template').innerHTML;
+    frame.dataset.loaded='true';
+  }
+}
+</script>
+</body>
+</html>
